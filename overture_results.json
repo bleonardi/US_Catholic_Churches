@@ -1,0 +1,27 @@
+[
+  {
+    "name": "Gesu Chapel",
+    "overture_parking_area_m2": 31014.909179958646,
+    "source": "Overture Maps (Infrastructure)"
+  },
+  {
+    "name": "Columbus Law",
+    "overture_parking_area_m2": 102430.8499456672,
+    "source": "Overture Maps (Infrastructure)"
+  },
+  {
+    "name": "St. Patrick",
+    "overture_parking_area_m2": 8965.64906183069,
+    "source": "Overture Maps (Infrastructure)"
+  },
+  {
+    "name": "OLMC",
+    "overture_parking_area_m2": 58517.656288516584,
+    "source": "Overture Maps (Infrastructure)"
+  },
+  {
+    "name": "Holy Name",
+    "overture_parking_area_m2": 53889.05712483839,
+    "source": "Overture Maps (Infrastructure)"
+  }
+]

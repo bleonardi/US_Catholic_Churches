@@ -1,0 +1,31 @@
+---
+title: "US Catholic Churches: Spatial & Economic Analysis"
+subtitle: "A Research Series on Institutional Rigidity and Real Estate Optimization"
+author: "Benedict Leonardi"
+format: 
+  html:
+    theme: simplex
+    toc: false
+---
+
+## Project Overview
+
+This research series explores the intersection of geography, economics, and institutional policy within the Roman Catholic Church in the United States. Utilizing a dataset of over 23,000 geolocated parishes combined with US Census data and AI-derived infrastructure footprints from Overture Maps, these papers analyze how legacy boundaries impact modern service delivery and urban land use.
+
+### Research Papers
+
+*   [**Canonical Rigidity & Sacred Space**](Canonical_Rigidity_Research_Paper.html)
+    A spatial econometric analysis of how legacy territorial boundaries create "spatial leakage" and service inefficiencies.
+
+*   [**Economics of Church Consolidation**](Economics_of_Church_Consolidation.html)
+    Modeling market consolidation and identifying high-value real estate assets for potential redevelopment.
+
+*   [**Sacred Spaces to Social Housing**](Closure_Conversion_Recommendations.html)
+    A strategic analysis of converting underutilized urban church parking into multi-family residential housing.
+
+*   [**Spiritual Landscapes**](Spiritual_Landscapes_Paper.html)
+    A geospatial and demographic exploration of the Church's physical presence across the US.
+
+---
+
+*This project was developed using R (sf, tidyverse) and Python (Overture Maps API), rendered with Quarto.*

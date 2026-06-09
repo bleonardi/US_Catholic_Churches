@@ -1,0 +1,44 @@
+[
+  {
+    "objectID": "Procession_Potential_Analysis.html",
+    "href": "Procession_Potential_Analysis.html",
+    "title": "Mapping Public Devotion: Corpus Christi Procession Potential",
+    "section": "",
+    "text": "This report analyzes the spatial potential for public Corpus Christi processions across all 222 churches in the Archdiocese of Cincinnati. By integrating the national Catholic church dataset with Overture Maps spatial layers, we identified parishes that offer the optimal balance of public visibility (interaction) and pedestrian safety (infrastructure)."
+  },
+  {
+    "objectID": "Procession_Potential_Analysis.html#executive-summary",
+    "href": "Procession_Potential_Analysis.html#executive-summary",
+    "title": "Mapping Public Devotion: Corpus Christi Procession Potential",
+    "section": "",
+    "text": "This report analyzes the spatial potential for public Corpus Christi processions across all 222 churches in the Archdiocese of Cincinnati. By integrating the national Catholic church dataset with Overture Maps spatial layers, we identified parishes that offer the optimal balance of public visibility (interaction) and pedestrian safety (infrastructure)."
+  },
+  {
+    "objectID": "Procession_Potential_Analysis.html#methodology",
+    "href": "Procession_Potential_Analysis.html#methodology",
+    "title": "Mapping Public Devotion: Corpus Christi Procession Potential",
+    "section": "Methodology",
+    "text": "Methodology\nTo calculate a scalable “Procession Impact Index,” we utilized a 500-meter buffer (typical procession length) around each church and evaluated two primary pillars:\n\nInteraction Potential (60%): A count of high-foot-traffic POIs from Overture’s places theme, including parks, public squares, cafes, and tourist attractions. This measures the “corpus” of the city—where a procession is most likely to encounter the public.\nSafety & Infrastructure (40%): The total linear distance of pedestrian-safe segments (footways, sidewalks, and residential paths) from Overture’s transportation theme. This ensures the route is safe for a diverse group of participants.\n\nThe final index is normalized on a scale of 0-100."
+  },
+  {
+    "objectID": "Procession_Potential_Analysis.html#top-ranked-parishes-in-cincinnati",
+    "href": "Procession_Potential_Analysis.html#top-ranked-parishes-in-cincinnati",
+    "title": "Mapping Public Devotion: Corpus Christi Procession Potential",
+    "section": "Top Ranked Parishes in Cincinnati",
+    "text": "Top Ranked Parishes in Cincinnati\nThe following parishes emerged as the strongest candidates for impactful public processions:\n\n\n\n\n\n\n\n\n\n\n\nChurch Name\nInteraction POIs\nSafe Infra (m)\nImpact Index\n\n\n\n\nSt. Xavier\n37\n21529.5\n83.0\n\n\nOld St. Mary\n23\n36423.1\n76.2\n\n\nMiami University Newman Center\n11\n37194.7\n57.6\n\n\nSt. Mary Church\n10\n37405.1\n56.2\n\n\nSt. Francis Seraph\n11\n35617.6\n55.9\n\n\nHoly Cross-Immaculata\n12\n23344.1\n44.4\n\n\nCathedral Basilica of St. Peter in Chains\n12\n22712.2\n43.7\n\n\nSt. Mary\n4\n32400.8\n41.1\n\n\nSt. Julie Billiart\n13\n18548.8\n40.9\n\n\nSt. Joseph (St. Gaspar Family of Parishes)\n14\n15869.4\n39.7\n\n\n\n\n\n\nKey Insights\n\nUrban Density Wins: Parishes in the downtown and Over-the-Rhine (OTR) clusters (St. Xavier, Old St. Mary, St. Francis Seraph) dominate the rankings due to the high density of both public squares and pedestrian-only infrastructure.\nCollegiate Potential: The Miami University Newman Center (Rank #3) shows high potential, benefiting from the highly pedestrianized Oxford campus and university-adjacent foot traffic.\nThe Cathedral Context: While the Cathedral Basilica (#7) has significant infrastructure, it serves as a central hub but has slightly lower immediate POI density than the core market/OTR parishes."
+  },
+  {
+    "objectID": "Procession_Potential_Analysis.html#visualizing-the-impact",
+    "href": "Procession_Potential_Analysis.html#visualizing-the-impact",
+    "title": "Mapping Public Devotion: Corpus Christi Procession Potential",
+    "section": "Visualizing the Impact",
+    "text": "Visualizing the Impact\nThe chart below shows the Top 20 parishes based on the Procession Impact Index.\n\n\n\nTop 20 Parishes for Processions"
+  },
+  {
+    "objectID": "Procession_Potential_Analysis.html#conclusion",
+    "href": "Procession_Potential_Analysis.html#conclusion",
+    "title": "Mapping Public Devotion: Corpus Christi Procession Potential",
+    "section": "Conclusion",
+    "text": "Conclusion\nThis analysis provides a data-driven foundation for diocesan planning of public devotions. Parishes with high indices are ideally positioned to move the liturgy into the public square safely, while parishes with lower scores may need to focus on specific route optimizations or coordinate with local authorities for road closures on less pedestrian-friendly streets.\n\nData Sources: National Catholic Church Directory, Overture Maps (Release 2026-05-20.0)."
+  }
+]

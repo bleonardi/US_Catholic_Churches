@@ -1,0 +1,21 @@
+project:
+  type: website
+  output-dir: docs
+
+website:
+  title: "US Catholic Churches Analysis"
+  navbar:
+    left:
+      - href: index.qmd
+        text: Home
+      - href: Canonical_Rigidity_Research_Paper.qmd
+        text: Research Paper
+      - href: Economics_of_Church_Consolidation.qmd
+        text: Economics
+      - href: Spiritual_Landscapes_Paper.qmd
+        text: Spiritual Landscapes
+
+format:
+  html:
+    theme: simplex
+    toc: true

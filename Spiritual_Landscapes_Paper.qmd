@@ -1,0 +1,213 @@
+---
+title: "Spiritual Landscapes: A Geospatial and Demographic Analysis of the Catholic Church in the United States"
+author: "Benedict Leonardi & Gemini CLI"
+date: "`r Sys.Date()`"
+format: 
+  html:
+    toc: true
+    code-fold: true
+    self-contained: true
+---
+
+# Introduction
+
+The Catholic Church in the United States operates within a rigid territorial framework defined by Canon Law. Every square inch of the country is assigned to a specific Parish, which in turn belongs to a Diocese. However, the "lived experience" of parishioners often diverges from these legal boundaries. This paper explores the "Spiritual Landscape" of the Church using geospatial analysis and machine learning to understand how institutional presence, ritual accessibility, and hagiography intersect with physical geography.
+
+# Data and Methodology
+
+We utilize a dataset of approximately 23,000 Catholic institutions scraped from national directories, supplemented by ritual frequency data (Mass and Confession times).
+
+Key methodologies include:
+1. **Geometric Parochiality (Voronoi Diagrams):** Defining the "natural catchment area" of each church based on proximity.
+2. **LLM-Assisted Feature Extraction:** Using `gemini-2.0-flash-lite` to identify patron saints and extract institutional history from parish websites.
+3. **Cross-Diocesan Spatial Analysis:** Identifying areas where geographic accessibility (proximity) conflicts with ecclesiastical jurisdiction.
+4. **Census Integration:** Correlating church service areas with demographic variables from the American Community Survey (ACS).
+
+```{r setup, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(sf)
+library(jsonlite)
+library(leaflet)
+library(tidycensus)
+
+# Load core datasets
+church_data <- read_csv("national_church_data.csv") %>%
+  filter(church_address_country_territory_name == "United States", !is.na(latitude))
+
+patron_data <- read_csv("national_church_data_w_patrons.csv")
+
+# Merge data
+full_data <- church_data %>%
+  left_join(patron_data, by = "psuedo_id")
+```
+
+# Spatial Analysis: Geometric vs. Ecclesiastical Boundaries
+
+One of the most striking findings is the "leakage" between dioceses. While a parishioner is legally bound to their territorial parish, they are physically closer to churches in neighboring dioceses in many cases.
+
+## Case Study 1: Cincinnati vs. Covington (The River Border)
+
+The Archdiocese of Cincinnati (OH) and the Diocese of Covington (KY) are separated by the Ohio River.
+
+```{r cin_cov_analysis}
+# Filter for the region
+cin_cov <- full_data %>%
+  filter(diocese_name %in% c("Cincinnati", "Covington"))
+
+cin_cov_sf <- st_as_sf(cin_cov, coords = c("longitude", "latitude"), crs = 4326)
+cin_cov_sf_proj <- st_transform(cin_cov_sf, 32616)
+
+# Create Voronoi
+voronoi_cin_cov <- st_voronoi(st_union(cin_cov_sf_proj)) %>%
+  st_collection_extract() %>%
+  st_sf() %>%
+  st_join(cin_cov_sf_proj) %>%
+  st_transform(4326)
+
+# Dynamic Map
+pal <- colorFactor(palette = c("#0072B2", "#D55E00"), domain = cin_cov_sf$diocese_name)
+
+leaflet(voronoi_cin_cov) %>%
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  addPolygons(fillColor = ~pal(diocese_name), 
+              fillOpacity = 0.4, 
+              color = "white", 
+              weight = 1,
+              popup = ~paste("<b>", name, "</b><br>Diocese: ", diocese_name, "<br>Patron: ", patron)) %>%
+  addCircles(data = cin_cov_sf, radius = 50, color = "black", weight = 1, opacity = 1) %>%
+  addLegend(pal = pal, values = ~diocese_name, title = "Diocese")
+```
+
+## Case Study 2: New York vs. Brooklyn (The Urban Border)
+
+```{r ny_bk_analysis}
+ny_bk <- full_data %>%
+  filter(diocese_name %in% c("New York", "Brooklyn"))
+
+ny_bk_sf <- st_as_sf(ny_bk, coords = c("longitude", "latitude"), crs = 4326)
+ny_bk_sf_proj <- st_transform(ny_bk_sf, 2263)
+
+voronoi_ny_bk <- st_voronoi(st_union(ny_bk_sf_proj)) %>%
+  st_collection_extract() %>%
+  st_sf() %>%
+  st_join(ny_bk_sf_proj) %>%
+  st_transform(4326)
+
+pal_ny <- colorFactor(palette = c("#009E73", "#CC79A7"), domain = ny_bk_sf$diocese_name)
+
+leaflet(voronoi_ny_bk) %>%
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  addPolygons(fillColor = ~pal_ny(diocese_name), 
+              fillOpacity = 0.4, 
+              color = "white", 
+              weight = 0.5,
+              popup = ~paste("<b>", name, "</b><br>Diocese: ", diocese_name)) %>%
+  addLegend(pal = pal_ny, values = ~diocese_name, title = "Diocese")
+```
+
+## Case Study 3: Chicago vs. Joliet (The Suburban Transition)
+
+```{r chi_jol_analysis}
+chi_jol <- full_data %>%
+  filter(diocese_name %in% c("Chicago", "Joliet in Illinois"))
+
+chi_jol_sf <- st_as_sf(chi_jol, coords = c("longitude", "latitude"), crs = 4326)
+chi_jol_sf_proj <- st_transform(chi_jol_sf, 32616)
+
+voronoi_chi_jol <- st_voronoi(st_union(chi_jol_sf_proj)) %>%
+  st_collection_extract() %>%
+  st_sf() %>%
+  st_join(chi_jol_sf_proj) %>%
+  st_transform(4326)
+
+pal_chi <- colorFactor(palette = c("#E69F00", "#56B4E9"), domain = chi_jol_sf$diocese_name)
+
+leaflet(voronoi_chi_jol) %>%
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  addPolygons(fillColor = ~pal_chi(diocese_name), 
+              fillOpacity = 0.4, 
+              color = "white", 
+              weight = 1,
+              popup = ~paste("<b>", name, "</b><br>Diocese: ", diocese_name)) %>%
+  addLegend(pal = pal_chi, values = ~diocese_name, title = "Diocese")
+```
+
+# Socio-Demographic Correlation (Census Analysis)
+
+By joining our "Spiritual Catchment Areas" with US Census data, we can explore how the density of Catholic presence correlates with local demographics. 
+
+*Note: This analysis requires a Census API key. For demonstration, we use a sample of Kentucky (Covington Diocese) and Ohio (Cincinnati Archdiocese) tracts.*
+
+```{r census_analysis, message=FALSE, warning=FALSE}
+# Variables: Total Pop, Median Age, Pct Hispanic, Vacancy Rate
+acs_vars <- c(
+  pop_total    = "B01003_001E",
+  median_age   = "B01002_001E",
+  white        = "B03002_003E",
+  hispanic     = "B03002_012E",
+  vacant_units = "B25002_003E",
+  total_units  = "B25002_001E"
+)
+
+# Fetching data for KY/OH (Sample states)
+# We handle the API key check gracefully
+if (Sys.getenv("CENSUS_API_KEY") != "") {
+  tract_data <- get_acs(
+    geography = "tract",
+    variables = acs_vars,
+    state = c("KY", "OH"),
+    year = 2019,
+    geometry = TRUE,
+    output = "wide") %>%
+    mutate(
+      pct_hispanic = hispanic / pop_total * 100,
+      vacancy_rate = vacant_units / total_units * 100
+    )
+  
+  # Link churches to tracts
+  churches_proj <- st_transform(cin_cov_sf, st_crs(tract_data))
+  tract_with_churches <- st_join(tract_data, churches_proj, join = st_intersects) %>%
+    group_by(GEOID) %>%
+    summarize(n_churches = sum(!is.na(name)),
+              median_age = first(median_age),
+              pct_hispanic = first(pct_hispanic),
+              vacancy_rate = first(vacancy_rate),
+              pop_total = first(pop_total))
+  
+  ggplot(tract_with_churches, aes(x = factor(n_churches), y = median_age)) +
+    geom_boxplot(fill = "steelblue") +
+    labs(title = "Church Density vs. Median Age",
+         x = "Number of Churches in Tract",
+         y = "Median Age of Tract") +
+    theme_minimal()
+} else {
+  cat("No Census API Key found. Skipping live census fetch. For results, please set 'CENSUS_API_KEY'.")
+}
+```
+
+# Quantitative Comparison of Institutional Character
+
+```{r comparison_table}
+# Re-calculating area on projected data
+voronoi_cin_cov_proj <- st_transform(voronoi_cin_cov, 32616)
+voronoi_ny_bk_proj <- st_transform(voronoi_ny_bk, 2263)
+voronoi_chi_jol_proj <- st_transform(voronoi_chi_jol, 32616)
+
+voronoi_cin_cov$area_km2 <- as.numeric(st_area(voronoi_cin_cov_proj)) / 1e6
+voronoi_ny_bk$area_km2 <- as.numeric(st_area(voronoi_ny_bk_proj)) / 1e6
+voronoi_chi_jol$area_km2 <- as.numeric(st_area(voronoi_chi_jol_proj)) / 1e6
+
+comparison <- tibble(
+  Region = c("Cincinnati/Covington", "NY/Brooklyn", "Chicago/Joliet"),
+  Avg_Service_Area_km2 = c(mean(voronoi_cin_cov$area_km2, na.rm=T), 
+                           mean(voronoi_ny_bk$area_km2, na.rm=T),
+                           mean(voronoi_chi_jol$area_km2, na.rm=T)),
+  Total_Churches = c(nrow(cin_cov), nrow(ny_bk), nrow(chi_jol))
+)
+
+knitr::kable(comparison, caption = "Average Church Service Area by Region")
+```
+
+# Conclusion
+
+The divergence between geometric proximity and ecclesiastical jurisdiction suggests that the Church's territorial model may not always align with the "least-effort" path for parishioners. Dynamic mapping reveals how physical geography—like the Ohio River or Manhattan's density—shapes the accessibility of sacraments. Future research should deepen the integration with Census data to determine if the "Confession Gap" or church density is a leading indicator of demographic shift or neighborhood stability.

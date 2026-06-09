@@ -1,0 +1,471 @@
+---
+title: "Exploratory Analysis: Catholic Churches"
+author: "Benedict Leonardi"
+format: html
+---
+
+I scraped a dataset of every Catholic church in the United States. What follows are some questions that I wanted to explore.
+
+# Data Loading
+
+```{r}
+library(tidyverse)
+
+church_data <- read_csv("national_church_data.csv") %>%
+  # selects just US churches, and those w valid coords
+  filter(church_address_country_territory_name == "United States",
+         !(is.na(latitude)))
+
+# cleans up, calculates fields
+worship_freq <- read_csv("national_worship_times.csv") %>% 
+  mutate(across(.cols = starts_with("time"),
+                .fns = ~ hms(.)),
+         time_length = time_end - time_start,
+         time_length = if_else(time_length < 0, time_length * -1, time_length),
+         time_length_hours = as.numeric(time_length, "hours")) %>%
+  group_by(psuedo_id, service_typename) %>%
+  summarize(ct = n(),
+            num_hrs = sum(time_length_hours, na.rm = TRUE)) %>%
+  pivot_wider(names_from = service_typename,
+              values_from = c(ct, num_hrs)) %>%
+  select(psuedo_id,
+         num_weekday_mass = `ct_Week Days`,
+         num_weekend_mass = ct_Weekend, 
+         num_hrs_conf = num_hrs_Confessions) %>%
+  mutate(across(.cols = starts_with("num"),
+                .fns = ~ ifelse(is.na(.), 0, .)))
+
+# adds data to church data
+church_data <- church_data %>% 
+  left_join(worship_freq, join_by(psuedo_id))
+
+ggplot(church_data, aes(x = num_weekend_mass)) +
+  geom_histogram()
+
+ggplot(church_data, aes(x = num_hrs_conf)) +
+  geom_histogram()
+
+ggplot(church_data, aes(x = num_hrs_conf, y = num_weekend_mass)) +
+  geom_point() +
+  labs(title = "Correlation of Confession Hours and Weekend Masses",
+       x = "Confession Hours",
+       y = "Weekend Masses")
+```
+
+# Census Overlap
+
+Now I want to run some analyses using `tidycensus` data... starting with basic demographic information.
+
+```{r}
+library(sf)
+library(tidycensus)
+
+church_data_sf <- church_data %>%
+  st_as_sf(coords = c("longitude", "latitude"),
+           crs = 4326)
+
+# census variables to grab
+acs_vars <- c(
+  pop_total    = "B01003_001E",
+  pop_65plus   = "B25033_001E",
+  pop_under18  = "B25033_002E",
+  median_age   = "B01002_001E",  # <-- proper median age var
+  white        = "B03002_003E",  # White alone
+  black        = "B03002_004E",
+  hispanic     = "B03002_012E",
+  owner_occ    = "B25003_002E",
+  renter_occ   = "B25003_003E",
+  vacant_units = "B25002_003E")
+
+# ACS data @ tract level (for one state at a time)
+tract_data_dl <- get_acs(
+  geography = "tract",
+  variables = acs_vars,
+  state = "KY",
+  year = 2019,
+  geometry = TRUE) %>%
+  select(GEOID, variable, estimate, geometry)
+
+# puts labels into proper order
+var_labels <- tibble(
+  variable = acs_vars,
+  label = names(acs_vars))
+
+# joins proper labels, sets them as column names
+tract_data <- tract_data_dl %>%
+  mutate(variable = paste0(variable, "E")) %>%
+  left_join(var_labels, by = "variable") %>%
+  select(GEOID, label, estimate, geometry) %>%
+  pivot_wider(
+    names_from  = label,
+    values_from = estimate)
+
+# derived measures
+tract_data <- tract_data %>%
+  mutate(
+    pct_65plus   = pop_65plus / pop_total * 100,
+    pct_under18  = pop_under18 / pop_total * 100,
+    pct_white    = white / pop_total * 100,
+    pct_black    = black / pop_total * 100,
+    pct_hispanic = hispanic / pop_total * 100,
+    # density      = density(geometry, pop_total), # tidycensus helper
+    vacancy_rate = vacant_units / (owner_occ + vacant_units) * 100)
+
+# church data
+churches <- church_data_sf %>%
+  st_transform(4269)
+
+# churches to census tracts
+churches_with_tract <- st_join(churches, tract_data, join = st_within)
+
+# count churches per tract
+tract_with_churches <- churches_with_tract %>%
+  st_drop_geometry() %>%
+  count(GEOID, name = "n_churches") %>%
+  right_join(tract_data, by = "GEOID") %>%
+  # fills NA (i.e., those w/o any churches) as 0
+  mutate(n_churches = ifelse(is.na(n_churches), 0, n_churches),
+         church_density = n_churches / st_area(geometry) * 1e6,
+         church_per_10k = n_churches / pop_total * 10000) %>%
+  filter(!is.infinite(church_per_10k)) %>%
+  st_as_sf # per sq km
+```
+
+# LLM
+
+```{r}
+library(mall)
+library(ellmer)
+
+chat <- ellmer::chat_google_gemini(model = "gemini-2.0-flash-lite")
+# ensures use of Gemini model
+llm_use(chat, seed = 100, temperature = 0)
+# llm_use("ollama", "llama3.1", seed = 100, temperature = 0)
+
+my_prompt <- paste(
+  "Answer a question.",
+  "Return only the answer, no explanation",
+  "Acceptable answers are a recognized (by the Catholic Church) Saint's name",
+  "Formatted as 'St. ___'. Return the underlying patron when referenced by a devotion",
+  "E.g., star of the sea = St. Mary, or, return a value of NA for something like 'Holy Spirit' (or if unsure)",
+  "When multiple saints are detected, list them both separated by a semicolon (e.g., St. Paul; St. Peter)",
+  "Answer this about the following text, What is the patron Saint's name?:"
+)
+
+church_data_llm <- church_data %>%
+  llm_custom(name,
+             my_prompt,
+             pred_name = "patron")
+```
+
+## Determining Distribution of Patrons
+
+```{r}
+library(spdep)
+
+patron_data <- church_data_llm %>%
+  select(psuedo_id, patron)
+
+lw <- church_data_sf %>%
+  st_coordinates() %>%
+  knearneigh(k = 5) %>%
+  knn2nb() %>%
+  nb2listw(zero.policy = TRUE)
+
+# rewritten to calculate thiessen polygons
+
+# plots thiessen polygons
+library(rmapshaper)
+library(mapview)
+
+voronoi_polygons <- church_data_sf %>%
+  st_combine() %>%
+  st_voronoi() %>%
+  st_collection_extract() %>%
+  st_intersection(st_as_sfc(st_bbox(church_data_sf)))
+
+voronoi_polygons <- tryCatch({
+  church_data_sf %>%
+    st_combine() %>%
+    st_voronoi() %>%
+    st_collection_extract() %>%
+    st_intersection(st_as_sfc(st_bbox(church_data_sf)))
+}, error = function(e) {
+  message("Error in voronoi creation. Attempting a simplified approach...")
+  church_data_sf %>%
+    st_union() %>%
+    st_voronoi() %>%
+    st_collection_extract() %>%
+    st_intersection(st_as_sfc(st_bbox(church_data_sf)))
+})
+
+church_data_sf_proj <- st_transform(church_data_sf, crs = 3857)
+
+voronoi_polygons <- tryCatch({
+  st_combine(church_data_sf_proj) %>%
+    st_voronoi() %>%
+    st_collection_extract() %>%
+    st_intersection(st_as_sfc(st_bbox(church_data_sf_proj)))
+}, error = function(e) {
+  message("Error in voronoi creation. Attempting a simplified approach...")
+  st_union(church_data_sf_proj) %>%
+    st_voronoi() %>%
+    st_collection_extract() %>%
+    st_intersection(st_as_sfc(st_bbox(church_data_sf_proj)))
+})
+
+church_data_v <- st_join(st_sf(voronoi_polygons, crs = st_crs(church_data_sf_proj)),
+                         church_data_sf_proj,
+                         join = st_intersects)
+
+mapview(church_data_v, 
+        zcol = "num_hrs_conf")
+
+moran.test(as.numeric(as.factor(church_data_sf$num_conf)), listw = lw, zero.policy = TRUE)
+```
+
+## Estimating Age of the Church Building
+
+```{r}
+library(rvest)
+library(stringr)
+library(xml2)
+library(mall)
+library(tidyr)
+library(jsonlite)
+library(dplyr)
+
+
+get_church_history_robust <- function(base_url) {
+  
+  if (is.na(base_url) || base_url == "") {
+    return(NA)
+  }
+  
+  # 1. Clean Protocol
+  if (!str_detect(base_url, "^http")) {
+    base_url <- paste0("http://", base_url)
+  }
+
+  tryCatch({
+    # 2. Start Session
+    sess <- session(base_url, user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/115.0.0.0 Safari/537.36")
+    
+    # 3. Smart Link Prioritization
+    # We grab ALL links first, then filter logic in R
+    all_links <- sess %>% html_elements("a")
+    link_text <- html_text(all_links) %>% str_trim()
+    link_href <- html_attr(all_links, "href")
+    
+    # Priority 1: Look for explicit "History" (ignoring case)
+    match_idx <- grep("History|Our Story|Parish History", link_text, ignore.case = TRUE)[1]
+    
+    # Priority 2: If no History, look for generic "About" or "Welcome"
+    if (is.na(match_idx)) {
+      match_idx <- grep("About|Welcome", link_text, ignore.case = TRUE)[1]
+    }
+    
+    # 4. The "Safe Jump" (Fixes your error)
+    if (!is.na(match_idx)) {
+      target_href <- link_href[match_idx]
+      
+      # Convert relative path (/sacraments) to absolute (http://site.org/sacraments)
+      absolute_url <- url_absolute(target_href, base = sess$url)
+      
+      # Try to jump, but if it fails (404), keep the homepage session
+      sess <- tryCatch({
+        sess %>% session_jump_to(absolute_url)
+      }, error = function(e) sess)
+    }
+
+    # 5. Extract Text (The "Nuclear" High-Recall Method)
+    # We grab the whole body. The LLM is smart enough to ignore the menu text.
+    # We strip extra whitespace to keep the token count manageable.
+    page_text <- sess %>% 
+      html_element("body") %>% 
+      html_text2()
+      
+    if (length(page_text) == 0 || is.na(page_text)) return(NA)
+    
+    # Truncate to first ~15,000 characters to save LLM costs/tokens
+    # (The founding date is almost always in the first few paragraphs)
+    return(str_sub(page_text, 1, 15000))
+
+  }, error = function(e) {
+    return(NA) # If the site is dead, return NA
+  })
+}
+
+# 3. Apply the LLM extraction
+church_data_w_txt <- church_data %>%
+  mutate(clean_url = str_trim(url),
+    clean_url = if_else(str_detect(clean_url, "^http"), 
+                        clean_url, 
+                        paste0("http://", clean_url))
+  ) %>%
+  # NOTE: This part requires you to scrape the text first
+  mutate(website_text = map_chr(url, get_church_history_robust, .progress = TRUE))
+
+# 1. Define the Prompt
+# Notice we explicitly ask for JSON and provide the keys
+json_prompt <- paste(
+  "Analyze the text and extract the following details into a valid JSON object.",
+  "Keys:",
+  "- 'founding_year': (integer or null)",
+  "- 'languages': (list of strings, e.g. ['Spanish'])",
+  "- 'has_school': (boolean)",
+  "- 'num_priests': (integer, count distinct names)",
+  "Return ONLY the JSON object, no markdown formatting.",
+  "Text:"
+)
+
+# 2. Run the LLM (Creates one column containing the JSON string)
+church_data_json <- church_data_w_txt %>%
+  llm_custom(
+    col = website_text, 
+    prompt = json_prompt,
+    pred_name = "raw_json" # The new column name
+  ) 
+
+# 3. Unpack the JSON into real columns
+church_data_final <- church_data_json %>%
+  # Helper to safely parse JSON (returns NA if LLM hallucinates bad format)
+  mutate(parsed = map(raw_json, ~ tryCatch(fromJSON(.), error = function(e) NULL))) %>%
+  # Expand the list column into your actual variables
+  unnest_wider(parsed)
+
+# View results
+glimpse(church_data_final)
+```
+
+
+
+``` {r}
+church_data_w_age %>% 
+  filter(year_founded != "NA\n") %>%
+  select(website_text, url, year_founded)
+```
+
+
+```{r}
+library(tidyverse)
+library(rvest)
+library(stringr)
+library(xml2)
+library(mall)
+library(jsonlite)
+library(ellmer)
+
+# --- STEP 1: DEFINE THE SCRAPING FUNCTION ---
+get_church_history_robust <- function(base_url) {
+  
+  # Guard Clause: Skip empty/NA URLs immediately
+  if (is.na(base_url) || base_url == "") {
+    return(NA)
+  }
+  
+  # 1. Clean Protocol
+  if (!str_detect(base_url, "^http")) {
+    base_url <- paste0("http://", base_url)
+  }
+
+  tryCatch({
+    # 2. Start Session (Act like a browser)
+    sess <- session(base_url, user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/115.0.0.0 Safari/537.36")
+    
+    # 3. Smart Link Prioritization
+    all_links <- sess %>% html_elements("a")
+    link_text <- html_text(all_links) %>% str_trim()
+    link_href <- html_attr(all_links, "href")
+    
+    # Priority 1: Explicit "History"
+    match_idx <- grep("History|Our Story|Parish History", link_text, ignore.case = TRUE)[1]
+    
+    # Priority 2: Generic "About"
+    if (is.na(match_idx)) {
+      match_idx <- grep("About|Welcome", link_text, ignore.case = TRUE)[1]
+    }
+    
+    # 4. The "Safe Jump"
+    if (!is.na(match_idx)) {
+      target_href <- link_href[match_idx]
+      absolute_url <- url_absolute(target_href, base = sess$url)
+      
+      sess <- tryCatch({
+        sess %>% session_jump_to(absolute_url)
+      }, error = function(e) sess)
+    }
+
+    # 5. Extract Text
+    page_text <- sess %>% 
+      html_element("body") %>% 
+      html_text2()
+      
+    if (length(page_text) == 0 || is.na(page_text)) return(NA)
+    
+    # Truncate to save tokens
+    return(str_sub(page_text, 1, 15000))
+
+  }, error = function(e) {
+    return(NA) 
+  })
+}
+
+# --- STEP 2: RUN THE SCRAPE ---
+# (Recommended: Run on a small sample first using head(5))
+
+church_data_scraped <- church_data %>%
+  # 1. Clean URLs and remove missing ones to prevent errors
+  mutate(clean_url = str_trim(url),
+         clean_url = if_else(str_detect(clean_url, "^http"), 
+                             clean_url, 
+                             paste0("http://", clean_url))) %>%
+  filter(!is.na(clean_url)) %>%
+  sample_n(1000) %>%
+  # 2. Scrape (This takes time!)
+  mutate(website_text = map_chr(clean_url, get_church_history_robust, .progress = TRUE))
+
+# --- STEP 3: CONFIGURE LLM ---
+chat <- ellmer::chat_google_gemini(model = "gemini-2.0-flash-lite")
+llm_use(chat)
+
+# --- STEP 4: DEFINE PROMPT & EXTRACT ---
+json_prompt <- paste(
+  "Analyze the text and extract the following details into a valid JSON object.",
+  "Keys:",
+  "- 'founding_year': (integer or null, year established/founded)",
+  "- 'languages': (list of strings, e.g. ['Spanish', 'Vietnamese'])",
+  "- 'has_school': (boolean, true if K-8 school is mentioned)",
+  "- 'num_priests': (integer, count distinct names of current clergy)",
+  "Return ONLY the JSON object, no markdown formatting.",
+  "Text:"
+)
+
+# 1. Ensure the prompt variable name matches what you use inside llm_custom
+# (You defined 'json_prompt' earlier, so use that variable name)
+my_prompt <- json_prompt 
+
+church_data_final <- church_data_scraped %>%
+  # FIX: Filter both NA *and* empty strings to prevent HTTP 400 errors
+  filter(!is.na(website_text), website_text != "") %>%
+  
+  # Optional: Filter out text that is too short to be useful (e.g., "Coming Soon")
+  filter(nchar(website_text) > 50) %>%
+
+  # 2. Run LLM
+  llm_custom(
+    col = website_text, 
+    prompt = my_prompt, # Make sure this matches your defined variable
+    pred_name = "raw_json"
+  ) %>%
+  
+  # 3. Clean & Parse (Same as before)
+  mutate(raw_json = str_remove_all(raw_json, "```json|```")) %>%
+  mutate(parsed = map(raw_json, ~ tryCatch(fromJSON(.), error = function(e) NULL))) %>%
+  unnest_wider(parsed)
+
+# View final results
+glimpse(church_data_final)
+```
+
+

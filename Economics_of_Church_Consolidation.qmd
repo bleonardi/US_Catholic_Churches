@@ -1,0 +1,158 @@
+---
+title: "The Spatial Economics of Sacred Space: Market Consolidation and Real Estate Optimization in the US Catholic Church"
+author: 
+  - name: "Benedict Leonardi"
+    affiliations: "Independent Researcher"
+date: "`r Sys.Date()`"
+abstract: |
+  This paper examines the spatial distribution, market area efficiency, and real estate footprint of the Catholic Church in the United States. Operating as a territorial monopoly regulated by canon law, the Church’s legacy infrastructure frequently misaligns with contemporary demographic shifts and declining religious adherence. Utilizing a novel dataset of over 23,000 geolocated parishes, integrated with service frequency (Mass times), US Census demographic data, and AI-derived Overture Maps infrastructure footprints, we model the "Spiritual Landscape" through the lens of spatial economics. We first employ Voronoi tessellations to identify geographic market catchment areas, revealing significant spatial "leakage" where parishioner proximity conflicts with rigid ecclesiastical boundaries. Second, we develop a Real Estate Redevelopment Index to identify heavily underutilized urban assets. By targeting parishes with low service density, high local population density, and extensive surface parking, we identify priority properties across US dioceses that are optimal for multi-family residential conversion. We estimate that strategically liquidating or repurposing these specific underperforming assets could alleviate local housing shortages while simultaneously stabilizing diocesan balance sheets.
+format: 
+  html:
+    theme: journal
+    toc: true
+    number-sections: true
+    code-fold: true
+    self-contained: true
+---
+
+## Introduction
+
+The Roman Catholic Church in the United States represents one of the largest private holders of real estate, operating a vast network of parishes, schools, and administrative buildings. Economically, the Church functions as a localized spatial monopoly. Under Canon Law, geographic territories are strictly delineated into parishes, aggregated into dioceses. Parishioners are legally bound to their geographic parish. However, the modern mobility of the American public, combined with changing demographics and declining weekly religious adherence, has fractured this rigid model. 
+
+Today, the institutional Church faces two converging macroeconomic realities:
+1. **Demand-Side Contraction:** A long-term secular decline in weekly Mass attendance and clerical vocations, resulting in excess capacity (underutilized physical space).
+2. **Urban Real Estate Scarcity:** A severe housing shortage in major metropolitan areas, driving up land values and increasing the opportunity cost of holding non-revenue-generating surface parking and underutilized ecclesiastical buildings.
+
+This paper applies spatial economics and urban land-use theory to analyze this mismatch. We seek to answer two primary questions: How closely do legal ecclesiastical boundaries align with actual geographic market areas (spatial accessibility)? And secondly, how can dioceses mathematically optimize their real property portfolios by identifying underutilized assets for redevelopment?
+
+## Literature Review
+
+This analysis bridges three sub-fields of economics:
+
+**1. The Economics of Religion:** Foundational work by Azzi and Ehrenberg (1975) framed religious participation as an intertemporal allocation of time and resources. Iannaccone (1998) expanded this to view denominations as firms competing in a religious marketplace. While Protestant denominations frequently behave as firms in a monopolistically competitive market, the Catholic Church operates more akin to a franchisor assigning strict regional monopolies (Dioceses/Parishes).
+
+**2. Spatial Competition and Market Areas:** Following Hotelling (1929) and Losch (1954), spatial economics dictates that consumers will travel to the nearest provider to minimize transportation costs. When administrative boundaries (e.g., diocesan borders) force consumers to bypass closer options, it creates spatial friction or "leakage." 
+
+**3. Urban Land Use and the Opportunity Cost of Space:** The Alonso-Muth-Mills monocentric city model dictates that land closer to high-density urban centers demands higher rents and denser capital development. Surface parking lots attached to urban parishes represent a severe misallocation of land in high-density zones (Shoup, 2005).
+
+## Data
+
+Our analysis relies on a novel synthesis of four distinct datasets:
+*   **Institutional Data:** Geocoded locations of approximately 23,000 Catholic institutions scraped from national directories (`national_church_data.csv`).
+*   **Service Demand Proxies:** Ritual frequency data including the number of weekend and weekday Masses per parish (`masstimes_national_data.csv`), serving as a proxy for institutional vitality and localized demand.
+*   **Demographic Data:** US Census American Community Survey (ACS) tract-level data, capturing population density, median age, and socioeconomic variables.
+*   **Infrastructure Data (Overture Maps):** May 2026 release data from Overture Maps (a Meta, Microsoft, and Amazon collaboration) queried via DuckDB. We extract the physical footprints of paved parking areas (`overture_parking_area_m2`) surrounding each church.
+
+```{r setup, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(sf)
+library(leaflet)
+
+# Load core institutional dataset
+church_data <- read_csv("national_church_data.csv", show_col_types = FALSE) %>%
+  filter(church_address_country_territory_name == "United States", !is.na(latitude))
+
+# Load pre-processed real estate redevelopment data
+load("final_recommendation_data.RData")
+```
+
+## Methodology
+
+### 1. Geometric Parochiality and Spatial Leakage
+
+To estimate the "natural" market area of a parish irrespective of its legal boundaries, we compute Voronoi tessellations across the United States. A Voronoi diagram partitions a plane into regions based on the distance to a specific set of points (churches). The area within a parish's Voronoi polygon represents the territory where that specific parish is geographically the closest option.
+
+We define "Spatial Leakage" as regions where a parishioner's Voronoi polygon belongs to a church in a different diocese than their physical residence. 
+
+### 2. The Redevelopment Index
+
+To identify optimal targets for closure, consolidation, or conversion, we construct a **Real Estate Redevelopment Index**. The index is a composite score maximizing the following attributes:
+*   **Underutilization (Service Scarcity):** Total weekly masses (weekend + weekday). Lower frequencies increase the score.
+*   **Zoning Potential (Overture Parking):** The square meterage of surface parking. Large surface lots in urban cores represent the "path of least resistance" for multi-family residential zoning, as they do not require demolition of historic church structures.
+*   **Market Demand (Population Density):** Tract-level population density. Higher density indicates stronger market demand for converted housing.
+
+$$ \text{Redevelopment Score}_i = f(\text{PopDensity}_i, \text{ParkingArea}_i, \frac{1}{\text{MassFrequency}_i}) $$
+
+## Results & Discussion
+
+### The Spatial Friction of Canonical Borders
+
+The spatial analysis reveals profound inefficiencies in the Church's territorial model. Canonical borders frequently trace natural geographic features (like rivers) or state lines, ignoring modern transportation networks (highways, bridges) that dictate true consumer travel costs.
+
+**Case Study: Cincinnati (OH) vs. Covington (KY)**
+Separated by the Ohio River, the Archdiocese of Cincinnati and the Diocese of Covington represent distinct legal markets. However, Voronoi analysis shows substantial overlap. Many residents in Northern Kentucky are spatially closer to downtown Cincinnati parishes than to their own diocesan alternatives. This geometric reality encourages "parish shopping" and undermines the monopolistic pricing power (tithing expectations) of the local diocese.
+
+```{r cin_cov_analysis, message=FALSE, warning=FALSE}
+cin_cov <- church_data %>%
+  filter(diocese_name %in% c("Cincinnati", "Covington")) %>%
+  st_as_sf(coords = c("longitude", "latitude"), crs = 4326) %>%
+  st_transform(32616)
+
+# Generate Voronoi Polygons
+voronoi_cin_cov <- st_voronoi(st_union(cin_cov)) %>%
+  st_collection_extract() %>%
+  st_sf() %>%
+  st_join(cin_cov) %>%
+  st_transform(4326)
+
+pal <- colorFactor(palette = c("#0072B2", "#D55E00"), domain = cin_cov$diocese_name)
+
+leaflet(voronoi_cin_cov) %>%
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  addPolygons(fillColor = ~pal(diocese_name), fillOpacity = 0.4, color = "white", weight = 1) %>%
+  addLegend(pal = pal, values = ~diocese_name, title = "Diocese Spatial Area")
+```
+
+### Strategic Asset Optimization (The Top 10 Portfolios)
+
+Applying the Redevelopment Index across the `final_recommendation_data`, we filter for high-density urban areas (> 500 pop/km²) to identify the top 10 redevelopment targets per diocese. 
+
+Properties scoring highly on this index operate fewer than the regional average of weekend services but sit on extensive, Overture-verified paved footprints in high-rent districts. Consolidating these parishes and leasing the land to developers for multi-family housing presents a massive economic opportunity.
+
+```{r redev_table, message=FALSE, warning=FALSE}
+library(reactable)
+library(htmltools)
+
+top_targets <- final_data %>%
+  filter(!is.na(diocese_name), pop_density > 500, !is.na(redev_score_adj)) %>%
+  arrange(diocese_name, desc(redev_score_adj)) %>%
+  group_by(diocese_name) %>%
+  slice_head(n = 3) %>% # Showing top 3 per diocese for brevity in paper
+  ungroup() %>%
+  mutate(
+    total_services = num_weekend_mass + num_weekday_mass,
+    display_name = ifelse(!is.na(overture_parking_area_m2), paste0(name, " 🛰️"), name)
+  ) %>%
+  select(diocese_name, display_name, church_address_city_name, total_services, pop_density, overture_parking_area_m2)
+
+reactable(
+  top_targets,
+  columns = list(
+    diocese_name = colDef(name = "Diocese"),
+    display_name = colDef(name = "Parish Name"),
+    church_address_city_name = colDef(name = "City"),
+    total_services = colDef(name = "Weekly Masses"),
+    pop_density = colDef(name = "Pop/km²"),
+    overture_parking_area_m2 = colDef(name = "Parking Space (m²)", na = "N/A")
+  ),
+  striped = TRUE, highlight = TRUE
+)
+```
+*(Note: The 🛰️ icon indicates surface parking was verified via 2026 AI-derived Overture Maps satellite footprints).*
+
+## Policy Implications and Conclusion
+
+The US Catholic Church is currently holding a vast portfolio of economically inefficient assets. By adhering to 19th and 20th-century spatial borders, the institution suffers from both spatial leakage and the immense opportunity costs associated with underutilized urban land.
+
+We propose that Diocesan planners adopt an economically rigorous, data-driven approach to pastoral planning:
+1. **Acknowledge Spatial Realities:** Consolidate parishes based on driving-time catchment areas (Voronoi/Isochrone models) rather than historic neighborhood borders.
+2. **Monetize the Margins:** Prioritize the conversion of massive surface parking lots (quantified via Overture Maps) in high-density urban zones. Ground-leasing these specific plots for affordable or market-rate housing achieves a dual mandate: providing a stable, highly lucrative revenue stream for the diocese while actively combatting the localized urban housing crisis.
+
+Further research should integrate local municipal zoning codes and historic preservation overlays to calculate the exact Net Present Value (NPV) of these suggested parcel conversions.
+
+## References
+*   Alonso, W. (1964). *Location and Land Use*. Harvard University Press.
+*   Azzi, C., & Ehrenberg, R. (1975). Household Allocation of Time and Church Attendance. *Journal of Political Economy*, 83(1), 27-56.
+*   Hotelling, H. (1929). Stability in Competition. *The Economic Journal*, 39(153), 41-57.
+*   Iannaccone, L. R. (1998). Introduction to the Economics of Religion. *Journal of Economic Literature*, 36(3), 1465-1495.
+*   Shoup, D. C. (2005). *The High Cost of Free Parking*. American Planning Association.
