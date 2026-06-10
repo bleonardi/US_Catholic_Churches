@@ -9,6 +9,7 @@
 .Rproj.user/
 !README.md
 !docs/
+!docs/**
 
 /.quarto/
 **/*.quarto_ipynb
