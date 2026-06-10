@@ -4,24 +4,26 @@ project:
   render:
     - index.qmd
     - Canonical_Rigidity_Research_Paper.qmd
-    - Economics_of_Church_Consolidation.qmd
-    - Spiritual_Landscapes_Paper.qmd
     - Closure_Conversion_Recommendations.qmd
 
 website:
-  title: "US Catholic Churches Analysis"
+  title: "Canonical Rigidity"
   navbar:
     left:
       - href: index.qmd
-        text: Home
+        text: Overview
       - href: Canonical_Rigidity_Research_Paper.qmd
-        text: Research Paper
-      - href: Economics_of_Church_Consolidation.qmd
-        text: Economics
-      - href: Spiritual_Landscapes_Paper.qmd
-        text: Spiritual Landscapes
+        text: Spatial Analysis
+      - href: Closure_Conversion_Recommendations.qmd
+        text: Redevelopment
 
 format:
   html:
     theme: flatly
     toc: true
+    toc-depth: 3
+    linestretch: 1.6
+    code-fold: true
+    highlight-style: github
+    df-print: kable
+    page-layout: article

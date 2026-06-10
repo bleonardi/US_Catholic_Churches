@@ -1,181 +1,127 @@
 ---
-title: "Sacred Spaces to Social Housing"
-subtitle: "Strategic Real Estate Analysis for Catholic Dioceses"
-author: "Gemini CLI Engineering"
+title: "Redevelopment Analysis: Priority Sites by Diocese"
+subtitle: "Identifying Underutilized Urban Church Land for Potential Conversion"
+author: "Benedict Leonardi"
 date: "`r Sys.Date()`"
-format: 
-  html:
-    theme: 
-      light: cosmo
-      dark: darkly
-    toc: true
-    toc-location: left
-    code-fold: true
-    self-contained: true
 ---
 
-<style>
-.card {
-  box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2);
-  transition: 0.3s;
-  border-radius: 5px;
-  padding: 15px;
-  margin-bottom: 20px;
-}
-.card:hover {
-  box-shadow: 0 8px 16px 0 rgba(0,0,0,0.2);
-}
-</style>
+## Overview
 
-# Executive Summary
+The [main analysis](Canonical_Rigidity_Research_Paper.html) identifies the structural conditions under which canonical rigidity generates asset misallocation: parishes in high-density urban areas holding large surface parking footprints while offering fewer services than their surrounding population would predict. This page translates that framework into a ranked set of candidate sites.
 
-The American Catholic Church faces a dual challenge: declining Mass attendance and a critical shortage of urban housing. This report identifies **10 priority properties per diocese** that exhibit high potential for closure and subsequent redevelopment into affordable or market-rate housing.
+The **Redevelopment Index** is a composite score across three dimensions:
 
-### Core Selection Criteria
-1.  **Service Underutilization**: Properties with significantly fewer Mass times than their regional peers.
-2.  **Urban Integration**: Located in high-density metropolitan areas with existing infrastructure.
-3.  **Redevelopment Scalability**: Preference for parishes with associated schools or large urban campuses (high-signal proxies for parking and land area).
+$$\text{Redev Score}_i = f\!\left(\text{PopDensity}_i,\; \text{ParkingArea}_i,\; \frac{1}{\text{MassFrequency}_i}\right)$$
+
+Higher scores indicate greater misalignment between current institutional use and the potential value of the underlying land. Parishes are filtered to urban and suburban density tiers (>500 persons/km²) to focus on areas where the opportunity cost of surface parking is meaningful.
 
 ```{r setup, include=FALSE}
 library(tidyverse)
 library(sf)
 library(leaflet)
 library(reactable)
-library(bslib)
-library(htmltools)
 
-# Load the pre-calculated national dataset
 load("final_recommendation_data.RData")
 
-# Filter for relevant columns and handle NAs
 top_recommendations <- final_data %>%
   filter(!is.na(diocese_name)) %>%
-  # Use the adjusted score (redev_score_adj) which now includes Overture data
   mutate(final_rank_score = ifelse(!is.na(redev_score_adj), redev_score_adj, redev_score)) %>%
-  filter(!is.na(final_rank_score)) %>%
-  filter(pop_density > 500) %>% # Focus on urban/suburban
+  filter(!is.na(final_rank_score), pop_density > 500) %>%
   arrange(diocese_name, desc(final_rank_score)) %>%
   group_by(diocese_name) %>%
   slice_head(n = 10) %>%
-  ungroup()
+  ungroup() %>%
+  mutate(
+    total_services  = num_weekend_mass + num_weekday_mass,
+    has_overture    = !is.na(overture_parking_area_m2),
+    display_name    = ifelse(has_overture, paste0(name, " *"), name)
+  )
 
-# Summary statistics for the dashboard
-num_dioceses <- length(unique(top_recommendations$diocese_name))
+num_dioceses  <- length(unique(top_recommendations$diocese_name))
 num_properties <- nrow(top_recommendations)
 ```
 
-::: {.layout-row}
-::: {.card}
-### `r num_dioceses`
-Dioceses Analyzed
-:::
+**`r num_dioceses` dioceses · `r num_properties` candidate properties** meeting the urban/suburban density threshold. Sites marked with * have parking area verified via Overture Maps 2026 infrastructure footprints.
 
-::: {.card}
-### `r num_properties` 
-Target Properties
-:::
+---
 
-::: {.card}
-### 3.2M+
-Est. Potential Residents
-:::
-:::
+## Priority Sites by Diocese
 
-# Methodology: Overture Maps Infrastructure Analysis
-
-To move beyond demographic proxies, this analysis integrates **Overture Maps (May 2026 Release)** for direct physical site assessment. Overture data, a collaboration between Meta, Microsoft, and Amazon, provides AI-derived footprints for millions of infrastructure features.
-
-### Overture-Verified Parking Score
-By querying the Overture **Infrastructure** layer via DuckDB, we quantify the **Paved Parking Area** (sq meters) directly surrounding each candidate. 
-
-Properties with large Overture footprints are prioritized for multi-family residential zoning because surface parking represents the path of least resistance for new construction.
-
-```{r overture_integration, message=FALSE, warning=FALSE}
-# Overture data is now pre-joined in final_recommendation_data.RData
-# We use 'has_overture_parking' as a flag for sites verified via satellite-derived footprints
-top_recommendations <- top_recommendations %>%
-  mutate(
-    has_overture = !is.na(overture_parking_area_m2)
-  )
-```
-
-# Top 10 Recommendations by Diocese
-
-Search or filter the table below. Candidates marked with a 🛰️ have been verified via **Overture Maps 2026** infrastructure footprints.
-
-```{r}
+```{r table}
 top_recommendations %>%
   st_drop_geometry() %>%
   mutate(
-    total_services = num_weekend_mass + num_weekday_mass,
     redev_score_final = round(final_rank_score, 3),
-    pop_density = round(pop_density, 0),
-    display_name = ifelse(has_overture, paste0(name, " 🛰️"), name)
+    pop_density       = round(pop_density, 0)
   ) %>%
-  select(diocese_name, display_name, church_address_city_name, total_services, pop_density, redev_score_final, overture_parking_area_m2) %>%
+  select(diocese_name, display_name, church_address_city_name,
+         total_services, pop_density, redev_score_final, overture_parking_area_m2) %>%
   reactable(
-    searchable = TRUE,
-    filterable = TRUE,
+    searchable  = TRUE,
+    filterable  = TRUE,
+    striped     = TRUE,
+    highlight   = TRUE,
+    pagination  = TRUE,
+    pageSizeOptions = c(10, 20, 50),
     columns = list(
-      diocese_name = colDef(name = "Diocese"),
-      display_name = colDef(name = "Parish Name"),
-      church_address_city_name = colDef(name = "City"),
-      total_services = colDef(name = "Weekly Services"),
-      pop_density = colDef(name = "Pop/km²"),
-      overture_parking_area_m2 = colDef(name = "Overture Parking (m²)", na = "-"),
-      redev_score_final = colDef(
+      diocese_name              = colDef(name = "Diocese"),
+      display_name              = colDef(name = "Parish"),
+      church_address_city_name  = colDef(name = "City"),
+      total_services            = colDef(name = "Weekly Services"),
+      pop_density               = colDef(name = "Pop/km²"),
+      overture_parking_area_m2  = colDef(name = "Parking Area (m²)", na = "—"),
+      redev_score_final         = colDef(
         name = "Redev Index",
         cell = function(value) {
-          color <- if (value > 0.8) "#e74c3c" else if (value > 0.6) "#f39c12" else "#27ae60"
-          div(style = list(color = color, fontWeight = "bold"), value)
+          color <- if (value > 0.8) "#c0392b" else if (value > 0.6) "#e67e22" else "#27ae60"
+          htmltools::div(style = list(color = color, fontWeight = "bold"), value)
         }
       )
-    ),
-    striped = TRUE,
-    highlight = TRUE,
-    pagination = TRUE,
-    pageSizeOptions = c(10, 20, 50)
+    )
   )
 ```
 
-# Regional Hotspots
+---
 
-The map below visualizes the concentration of high-potential properties. **Redder** markers indicate a higher score. Markers with a black stroke represent **Overture-verified** sites.
+## Geographic Distribution
 
-```{r}
+Marker size scales to the Redevelopment Index score; sites with Overture-verified parking footprints are shown with a dark border.
+
+```{r map}
 pal <- colorNumeric(palette = "YlOrRd", domain = top_recommendations$final_rank_score)
 
-leaflet(top_recommendations, height = 600) %>%
+leaflet(top_recommendations, height = 580) %>%
   addProviderTiles(providers$CartoDB.Positron) %>%
   addCircleMarkers(
-    radius = ~final_rank_score * 12,
-    color = ~pal(final_rank_score),
-    stroke = ~has_overture,
-    weight = 2,
-    opacity = 1,
-    fillOpacity = 0.7,
+    radius     = ~final_rank_score * 12,
+    fillColor  = ~pal(final_rank_score),
+    color      = ~ifelse(has_overture, "#2c3e50", "#888888"),
+    weight     = ~ifelse(has_overture, 2, 0.5),
+    fillOpacity = 0.75,
     label = ~paste0(name, " (", diocese_name, ")"),
     popup = ~paste0(
-      "<div style='font-family: sans-serif;'>",
-      "<h3>", name, "</h3>",
-      "<b>City:</b> ", church_address_city_name, "<br>",
-      "<b>Diocese:</b> ", diocese_name, "<br>",
-      "<b>Weekly Services:</b> ", total_services, "<br>",
-      "<b>Redevelopment Index:</b> ", round(final_rank_score, 3), "<br>",
-      ifelse(has_overture, paste0("<b>🛰️ Overture Parking Area:</b> ", round(overture_parking_area_m2, 0), " m²<br>"), ""),
-      "<hr>",
-      "<i>Verified via Overture Maps 2026 infrastructure layers.</i>",
-      "</div>"
+      "<b>", name, "</b><br>",
+      diocese_name, " · ", church_address_city_name, "<br>",
+      "Weekly services: ", total_services, "<br>",
+      "Pop density: ", round(pop_density), " /km²<br>",
+      "Redev index: ", round(final_rank_score, 3),
+      ifelse(has_overture,
+             paste0("<br>Parking: ", round(overture_parking_area_m2), " m² (Overture verified)"),
+             "")
     )
   ) %>%
-  addLegend(pal = pal, values = ~final_rank_score, title = "Redev Potential", position = "bottomright")
+  addLegend(pal = pal, values = ~final_rank_score,
+            title = "Redev Index", position = "bottomright")
 ```
 
-# Next Steps: Implementation
+---
 
-1.  **Site Inspection**: Validate the Overture-derived parking area with on-site surveys.
-2.  **Canonical Status**: Begin the process of *reductio ad statum profanum* for the highest-score properties.
-3.  **Housing Partnership**: Engage with non-profit housing developers (e.g., Catholic Charities Housing) for adaptive reuse projects.
+## On the Policy Logic
+
+The redevelopment argument is not that churches should close — it is that the specific sites flagged here represent a category where the mismatch between institutional use and urban land economics is particularly acute. A parish offering 6 weekend Masses in a neighborhood with 4,000 residents per km² and 5,000 m² of surface parking is, from a land-use standpoint, an outlier. What exactly should happen to that site involves canonical, historic preservation, and community considerations well outside the scope of this analysis.
+
+The more tractable proposal is the *ground-lease model*: dioceses retain ownership of sacred structures while leasing surface parking to developers for multi-family residential construction. This preserves the parish's sacramental function, removes no seats from the nave, and converts dead land into a stable endowment-style revenue stream — a structure that Catholic Charities Housing and similar organizations have piloted in several dioceses.
 
 ---
-*Disclaimer: This report is for strategic planning purposes and does not represent official diocesan policy. Physical footprints derived from Overture Maps Foundation infrastructure data.*
+
+*Infrastructure footprints from Overture Maps Foundation (May 2026 release). Revenue and population data from ACS 2022 5-Year Estimates.*

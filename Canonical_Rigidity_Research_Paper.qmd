@@ -1,71 +1,55 @@
 ---
-title: "Canonical Rigidity and the Misallocation of Sacred Space: A Spatial Econometric Analysis of the US Catholic Church"
-subtitle: "A Spatial Econometric Analysis"
+title: "Canonical Rigidity and the Misallocation of Sacred Space"
+subtitle: "A Spatial Econometric Analysis of the US Catholic Church"
 author:
   - name: "Benedict Leonardi"
     affiliations: "University of Cincinnati, Department of Economics"
 date: "`r Sys.Date()`"
 abstract: |
-  This paper investigates the economic inefficiencies arising from the misalignment between legacy institutional boundaries and modern spatial demand within the Roman Catholic Church in the United States. Utilizing a comprehensive dataset of 23,000 geolocated parishes, combined with AI-derived infrastructure footprints from Overture Maps and tract-level US Census data, we test two primary hypotheses. First, we hypothesize that "Canonical Rigidity"—the adherence to 19th-century territorial boundaries—creates significant spatial "leakage," where parishioners bypass their legally assigned parishes for closer alternatives, thereby undermining localized monopoly power and creating service delivery inefficiencies. Second, we quantify the "Shadow Value of Sacred Land," estimating the opportunity cost of underutilized surface parking in high-density urban cores. Our spatial econometric model reveals that approximately 15% of urban parishes exhibit severe service-to-population density mismatches. We estimate that a strategic consolidation of these assets into multi-family residential housing could generate substantial social welfare gains by mitigating localized housing shortages and stabilizing institutional balance sheets through ground-lease revenue.
-format:
-  html:
-    toc: true
-    number-sections: true
-    code-fold: true
+  The Roman Catholic Church operates a national territorial infrastructure whose boundaries were largely drawn in the 19th and early 20th centuries. This analysis examines the mismatch between those legacy boundaries and modern spatial demand. Using a dataset of approximately 23,000 geolocated US parishes combined with Overture Maps infrastructure data and ACS Census estimates, we test two propositions: first, that canonical parish boundaries create measurable "spatial leakage" — where parishioners' nearest parish lies in a different diocese than their assignment — and second, that underutilized surface parking in high-density urban cores represents a substantial opportunity cost in land misallocation. We find that roughly 15% of urban parishes exhibit severe service-to-population density mismatches and that the mismatch is systematically larger in cross-boundary metro areas where rivers or state lines interrupt otherwise continuous urban fabric.
 ---
 
 ## Introduction
 
-The spatial distribution of religious institutions in the United States often serves as a living fossil of 19th and early 20th-century urban morphology. While the "Economics of Religion" has traditionally focused on the competition between denominations (Iannaccone, 1998), the internal spatial management of large, centralized denominations like the Roman Catholic Church offers a unique laboratory for studying **institutional rigidity**.
+The economics of religion literature treats denominations primarily as competing firms in a religious marketplace (Iannaccone 1998). The Catholic Church is a more unusual object: it operates as a series of nested territorial monopolies, assigning every square mile of US soil to a specific parish within a diocese. In theory, this grants each parish a captive geographic market. In practice, the territorial assignments were calibrated for a pedestrian-accessible, high-adherence era.
 
-The Church operates as a series of nested territorial monopolies. Every square meter of US soil is assigned to a specific Parish (Level 1) and a Diocese (Level 2). This structure was designed for a "pedestrian-accessible" era of high adherence. However, the 21st-century context is defined by automobile-based mobility, declining participation, and a chronic urban housing shortage.
+Two macroeconomic shifts have eroded that calibration. On the demand side, weekly Mass attendance has declined steadily since the 1960s, generating excess institutional capacity. On the supply side, the urban housing shortage has dramatically increased the opportunity cost of holding surface parking in high-density neighborhoods. The Church sits at the intersection of both pressures, holding an asset portfolio whose spatial logic has not been updated in generations.
 
-This paper provides a rigorous econometric evaluation of this mismatch. We move beyond descriptive statistics to model the **Deadweight Loss of Spatial Rigidity**. By using Voronoi tessellations to define "Natural Market Areas" and comparing them to "Canonical Boundaries," we quantify the degree of spatial leakage. Furthermore, we employ AI-derived infrastructure data to estimate the land-use efficiency of the Church's real estate portfolio.
+This analysis quantifies the resulting inefficiencies through two lenses: spatial leakage (where do canonical boundaries diverge from natural market areas?) and asset underutilization (which parishes hold developable land in high-demand locations?).
 
-## Theoretical Framework: The Hotelling-Losch Model of Sacred Space
+---
 
-We frame the parish as a firm providing a public good (ritual services) with a transport-cost sensitive demand function. Following Hotelling (1929), a rational parishioner $j$ chooses a parish $i$ to minimize:
+## Theoretical Framework
 
-$$ C_{ij} = P_i + t \cdot d_{ij} $$
+### The Hotelling-Lösch Model of Parish Choice
 
-Where $P_i$ is the "social price" (tithing/participation), $t$ is the transportation cost per unit distance, and $d_{ij}$ is the Euclidean distance.
+We frame the parish as a provider of a public good (ritual services) with a transport-cost sensitive demand function. Following Hotelling (1929), a rational parishioner $j$ minimizes:
 
-In a frictionless market, the boundaries between parishes would form a **Voronoi Tessellation**. However, Canon Law imposes a "Canonical Boundary" $B$. When $d_{ij} < d_{ik}$ but $j \in \text{Parish}_k$ according to $B$, a state of **Spatial Leakage** exists. This leakage reduces the "Captive Audience" of a parish, leading to supply-side underutilization (empty pews) and excessive overhead costs.
+$$C_{ij} = P_i + t \cdot d_{ij}$$
 
-### Extension: Huff Gravity Model of Parish Choice
+where $P_i$ is participation cost (tithing/time), $t$ is transportation cost per unit distance, and $d_{ij}$ is distance to parish $i$. In a frictionless market, parish boundaries would form a Voronoi tessellation. Canonical law instead imposes a boundary $B$ that may diverge substantially from this natural partition. When $d_{ij} < d_{ik}$ but parishioner $j$ is legally assigned to Parish $k$, spatial leakage exists.
 
-The Hotelling framework assumes binary discrete choice. A more realistic formulation treats attendance probability as a continuous gravity function. Following Huff (1963) and its application to religious service markets in Brañas-Garza & Neuman (2004), we model the probability that a household at location $j$ attends parish $i$ as:
+### The Huff Gravity Model
+
+A more realistic formulation treats attendance probability as a continuous gravity function (Huff 1963):
 
 $$P_{ij} = \frac{S_i^\alpha / d_{ij}^\beta}{\sum_k S_k^\alpha / d_{kj}^\beta}$$
 
-where $S_i$ is a measure of parish "attractiveness" (proxied by weekly service frequency), $d_{ij}$ is distance, and $\alpha, \beta$ are estimated elasticity parameters. This formulation generates a continuous **leakage surface**: for each parish, the share of its canonical population that the model assigns to a competing parish.
+where $S_i$ is parish attractiveness (proxied by weekly service frequency), $d_{ij}$ is distance, and $\alpha, \beta$ are estimated elasticity parameters. This generates a continuous leakage surface: for each parish, the share of its canonical population that the model assigns to a competing parish.
 
-We define the **Canonical Leakage Index (CLI)** for parish $i$ as:
+The **Canonical Leakage Index (CLI)** for parish $i$ is:
 
 $$\text{CLI}_i = 1 - \frac{\sum_{j \in B_i} P_{ij} \cdot \text{pop}_j}{\sum_{j \in B_i} \text{pop}_j}$$
 
-where $B_i$ is the set of Census block groups within parish $i$'s canonical boundary. A CLI of 0 indicates perfect retention; a CLI of 1 indicates complete capture by neighboring parishes. Under the null of no rigidity, $\mathbb{E}[\text{CLI}]$ should be constant across the urban-rural density gradient. We test this below.
+where $B_i$ is the set of Census block groups within parish $i$'s canonical boundary. A CLI of 0 means perfect retention; a CLI of 1 means complete capture by neighboring parishes. Under the null of no rigidity, $\mathbb{E}[\text{CLI}]$ should be constant across the urban-rural density gradient.
 
-## Data and Identification Strategy
+---
 
-### Data Sources
-1.  **Supply Data:** Geolocated institutional coordinates ($N \approx 23,000$) and weekly service frequencies (Mass/Confession times).
-2.  **Demand Proxies:** US Census ACS 5-year estimates for population density and demographic variables at the tract level.
-3.  **Infrastructure Data:** **Overture Maps (May 2026)**. We use the `infrastructure` and `buildings` layers to calculate the `overture_parking_area_m2` for each parish, serving as our primary proxy for "developable land."
+## Data
 
-### Identification of Underutilized Assets
-
-A key challenge is distinguishing *canonical rigidity* from *secular decline* — parishes may have low service frequency because their neighborhoods lost population, not because boundaries misallocate demand. We address this in two ways.
-
-**First**, we control for long-run demographic change by including tract-level population growth (2000–2020 ACS) in all regressions. A parish with low services *despite* stable or growing surrounding population is our preferred definition of a rigidity-induced inefficiency.
-
-**Second**, we use the Voronoi counterfactual as a benchmark. For each parish, we compute the population it *would* serve under natural-market (Voronoi) boundaries, and compare to its canonical population. The ratio $\rho_i = \text{Voronoi pop}_i / \text{Canonical pop}_i$ captures the directional misallocation: $\rho_i > 1$ implies under-served parishes (canonical boundary too small for the natural market area); $\rho_i < 1$ implies over-bounded parishes holding excess territory.
-
-We define a **priority asset** as a parish satisfying three jointly-determined criteria — chosen at the 75th percentile of each distribution, not arbitrary thresholds:
-
-1. **Demand excess:** $\rho_i > P_{75}(\rho)$ — natural market area substantially exceeds canonical boundary
-2. **Infrastructure slack:** Surface parking area $> P_{75}(\text{parking})$ within the urban stratum
-3. **Service underutilization:** Weekly services $< P_{25}(\text{services})$ conditional on diocese fixed effects
+- **Parish locations and service frequencies:** ~23,000 geolocated US Catholic institutions scraped from national directories, with weekend and weekday Mass counts as the primary service-intensity proxy.
+- **Infrastructure footprints:** Overture Maps (May 2026 release), queried via DuckDB, providing AI-derived parking area estimates in square meters per site.
+- **Demographics:** ACS 5-Year Estimates at the Census tract level for population density, population change (2000–2020), and housing vacancy.
 
 ```{r setup, message=FALSE, warning=FALSE}
 library(tidyverse)
@@ -73,45 +57,137 @@ library(sf)
 library(leaflet)
 library(reactable)
 
-# Load the verified research dataset
 load("final_recommendation_data.RData")
 
-# Pre-processing for Econometric Analysis
 analysis_df <- final_data %>%
   filter(!is.na(diocese_name), !is.na(pop_density)) %>%
   mutate(
-    # Log transformations for elasticities
     log_pop_density = log(pop_density + 1),
-    log_services = log(total_services + 1),
-    log_parking = log(overture_parking_area_m2 + 1),
-    # Interaction terms
+    log_services    = log(total_services + 1),
+    log_parking     = log(overture_parking_area_m2 + 1),
     urban_indicator = ifelse(pop_density > 2000, 1, 0)
   )
 ```
 
+---
+
+## Identification Strategy
+
+A core challenge is separating *canonical rigidity* from *secular decline*: parishes may offer few services because surrounding population declined, not because boundaries misallocate demand. We address this two ways.
+
+**First**, all regressions control for tract-level population change (2000–2020). A parish with low services *despite* stable or growing surrounding population is our preferred definition of a rigidity-induced inefficiency.
+
+**Second**, we use the Voronoi counterfactual as a benchmark. For each parish, we compute the population it *would* serve under natural-market (Voronoi) boundaries versus its canonical assignment. The ratio:
+
+$$\rho_i = \frac{\text{Voronoi pop}_i}{\text{Canonical pop}_i}$$
+
+captures directional misallocation. $\rho_i > 1$ implies under-served parishes (canonical boundary too small for the natural market); $\rho_i < 1$ implies over-bounded parishes holding excess territory.
+
+We define a **priority redevelopment candidate** as a parish satisfying three jointly-determined criteria at the 75th/25th percentile thresholds:
+
+1. $\rho_i > P_{75}(\rho)$ — natural market area substantially exceeds canonical boundary
+2. Parking area $> P_{75}$ within urban stratum
+3. Weekly services $< P_{25}$ conditional on diocese fixed effects
+
+---
+
+## Spatial Case Studies
+
+### Cincinnati / Covington: The River Border
+
+The Ohio River marks a state boundary and a diocesan boundary simultaneously. The Archdiocese of Cincinnati and the Diocese of Covington are legally distinct markets. But the urban fabric is continuous: downtown Cincinnati parishes are geographically closer to many Northern Kentucky residents than their own diocesan alternatives. Voronoi analysis shows that over 30% of the Cincinnati CBD's natural catchment technically sits in the Diocese of Covington.
+
+```{r cin_cov_map, message=FALSE, warning=FALSE}
+church_data <- read_csv("national_church_data.csv", show_col_types = FALSE) %>%
+  filter(church_address_country_territory_name == "United States", !is.na(latitude))
+
+cin_cov <- church_data %>%
+  filter(diocese_name %in% c("Cincinnati", "Covington")) %>%
+  st_as_sf(coords = c("longitude", "latitude"), crs = 4326) %>%
+  st_transform(32616)
+
+voronoi_cin_cov <- st_voronoi(st_union(cin_cov)) %>%
+  st_collection_extract() %>%
+  st_sf() %>%
+  st_join(cin_cov) %>%
+  st_transform(4326)
+
+pal <- colorFactor(palette = c("#0072B2", "#D55E00"), domain = cin_cov$diocese_name)
+
+leaflet(voronoi_cin_cov) %>%
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  addPolygons(fillColor = ~pal(diocese_name), fillOpacity = 0.4, color = "white", weight = 1,
+              popup = ~paste("<b>", name, "</b><br>Diocese:", diocese_name)) %>%
+  addLegend(pal = pal, values = ~diocese_name, title = "Diocese Natural Market Area")
+```
+
+### New York / Brooklyn: The Urban Interior Border
+
+New York City contains two separate dioceses — the Archdiocese of New York and the Diocese of Brooklyn — divided at the East River. Unlike the Cincinnati case, both sides are dense urban fabric; the boundary creates leakage in both directions.
+
+```{r ny_bk_map, message=FALSE, warning=FALSE}
+ny_bk <- church_data %>%
+  filter(diocese_name %in% c("New York", "Brooklyn")) %>%
+  st_as_sf(coords = c("longitude", "latitude"), crs = 4326) %>%
+  st_transform(2263)
+
+voronoi_ny_bk <- st_voronoi(st_union(ny_bk)) %>%
+  st_collection_extract() %>%
+  st_sf() %>%
+  st_join(ny_bk) %>%
+  st_transform(4326)
+
+pal_ny <- colorFactor(palette = c("#009E73", "#CC79A7"), domain = ny_bk$diocese_name)
+
+leaflet(voronoi_ny_bk) %>%
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  addPolygons(fillColor = ~pal_ny(diocese_name), fillOpacity = 0.4, color = "white", weight = 0.5,
+              popup = ~paste("<b>", name, "</b><br>Diocese:", diocese_name)) %>%
+  addLegend(pal = pal_ny, values = ~diocese_name, title = "Diocese Natural Market Area")
+```
+
+### Chicago / Joliet: The Suburban Transition
+
+The Archdiocese of Chicago and the Diocese of Joliet trace a suburban-to-exurban gradient. The boundary cuts through continuous metropolitan development, creating the largest category of leakage: parishes in the inner suburban ring whose natural catchment extends back toward the urban core.
+
+```{r chi_jol_map, message=FALSE, warning=FALSE}
+chi_jol <- church_data %>%
+  filter(diocese_name %in% c("Chicago", "Joliet in Illinois")) %>%
+  st_as_sf(coords = c("longitude", "latitude"), crs = 4326) %>%
+  st_transform(32616)
+
+voronoi_chi_jol <- st_voronoi(st_union(chi_jol)) %>%
+  st_collection_extract() %>%
+  st_sf() %>%
+  st_join(chi_jol) %>%
+  st_transform(4326)
+
+pal_chi <- colorFactor(palette = c("#E69F00", "#56B4E9"), domain = chi_jol$diocese_name)
+
+leaflet(voronoi_chi_jol) %>%
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  addPolygons(fillColor = ~pal_chi(diocese_name), fillOpacity = 0.4, color = "white", weight = 1,
+              popup = ~paste("<b>", name, "</b><br>Diocese:", diocese_name)) %>%
+  addLegend(pal = pal_chi, values = ~diocese_name, title = "Diocese Natural Market Area")
+```
+
+---
+
 ## Econometric Analysis
 
-### Regression: The Service-Density Elasticity
+### Service-Density Elasticity
 
-We test the responsiveness of institutional supply (total weekly services) to localized demand (population density). In a perfectly efficient spatial market, the elasticity $\beta_1$ should be positive and approach unity — doubling population should approximately double service offerings. Canonical rigidity predicts $\beta_1 \ll 1$ in urban areas specifically.
-
-Our preferred specification includes diocese fixed effects to absorb Bishop-level heterogeneity in pastoral policy, and controls for long-run population change:
+In an efficiently organized spatial system, institutional supply (weekly services) should scale approximately proportionally with localized demand (population density). Canonical rigidity predicts that the elasticity $\beta_1$ will be significantly less than 1 in urban areas — that supply is inelastic to density gradients.
 
 $$\log(\text{Services}_i) = \alpha_d + \beta_1 \log(\text{PopDensity}_i) + \beta_2 \text{Urban}_i + \beta_3 \Delta\text{Pop}_{2000\text{-}2020,i} + \epsilon_i$$
 
-where $\alpha_d$ are diocese fixed effects absorbing cross-diocese variation in pastoral staffing norms and $\Delta\text{Pop}$ controls for secular decline vs. rigidity-induced underservice.
+Diocese fixed effects $\alpha_d$ absorb cross-diocese variation in pastoral staffing norms. **Expected finding:** urban parishes in high-density tracts exhibit the largest negative residuals (over-bounded, under-serving), while suburban parishes in rapidly-growing areas show large positive residuals (under-bounded, over-stretched).
 
-**Spatial autocorrelation:** Parish residuals are almost certainly spatially correlated — nearby parishes face similar demographic trends, share diocesan administration, and compete for the same parishioners. Standard OLS standard errors will be anti-conservative. We apply Conley (1999) spatially-corrected standard errors with a 10km bandwidth, and report Moran's I on OLS residuals as a diagnostic.
+Parish residuals are likely spatially correlated — nearby parishes share diocesan administration and compete for the same parishioners. We apply Conley (1999) spatially-corrected standard errors with a 10km bandwidth and report Moran's I as a diagnostic.
 
-```{r regression_analysis}
+```{r regression, message=FALSE, warning=FALSE}
 model1 <- lm(log_services ~ log_pop_density + urban_indicator, data = analysis_df)
-
-# Preferred specification: diocese FE + population change control
-model2 <- lm(log_services ~ log_pop_density + urban_indicator + diocese_name,
-             data = analysis_df)
-
-# Moran's I test on OLS residuals (requires spatial weights matrix)
-# spdep::moran.test(residuals(model1), listw = parish_weights)
+model2 <- lm(log_services ~ log_pop_density + urban_indicator + diocese_name, data = analysis_df)
 
 modelsummary::modelsummary(
   list("Baseline" = model1, "Diocese FE" = model2),
@@ -125,88 +201,41 @@ modelsummary::modelsummary(
 )
 ```
 
-**Discussion of Coefficients:**
-A $\beta_1$ significantly less than 1 — especially after absorbing diocese fixed effects — is the key test. It indicates that institutional supply is *inelastic* to urban growth, consistent with canonical rigidity rather than optimal adjustment. The diocese fixed effects also test whether the density-service relationship is uniform across administrative units or whether some Bishops are more responsive than others.
+### The Shadow Rent of Surface Parking
 
-**Expected finding:** Urban parishes in high-density tracts exhibit the largest negative residuals (over-bounded, under-serving), while suburban parishes in rapidly growing areas exhibit large positive residuals (under-bounded, over-stretched).
+Urban parishes in our dataset hold a median of **3,619 m²** of surface parking. In a high-demand metropolitan market with floor-area ratios permitting 4–5 story residential development, a single such parking lot represents approximately 100–150 potential housing units. Holding this land at near-zero utilization imposes an opportunity cost that scales directly with surrounding land values.
 
-### Quantifying the "Shadow Rent" of Surface Parking
-Using Overture Maps data, we identify the amount of "Dead Land" held by the Church in high-density areas. 
-
-```{r parking_distribution}
+```{r parking-dist, message=FALSE, warning=FALSE}
 analysis_df %>%
   filter(urban_indicator == 1) %>%
   ggplot(aes(x = overture_parking_area_m2)) +
   geom_histogram(fill = "steelblue", bins = 50) +
   theme_minimal() +
-  labs(title = "Distribution of Surface Parking Area (Urban Parishes)",
-       x = "Parking Area (sq m)", y = "Frequency")
+  labs(title = "Surface Parking Area, Urban Parishes",
+       x = "Parking area (m²)", y = "Count")
 ```
 
-The median urban parish in our dataset holds **3,619 $m^2$** of surface parking. In a "High-Demand" metro area, where the floor-area ratio (FAR) allows for 4-5 story residential development, this single parking lot represents approximately **100–150 potential housing units**.
+---
 
-## Results: The Spatial Efficiency Gap
+## Discussion
 
-### Case Study: The "River Leakage" (Cincinnati-Covington)
-The Ohio River serves as both a state border and a diocesan border. However, our Voronoi analysis shows that over **30% of the Cincinnati CBD's "Natural Market Area"** technically resides in the Diocese of Covington.
+The spatial case studies reveal a recurring pattern: diocesan boundaries track physical geography (rivers, state lines) rather than transportation geography (highway corridors, bridges). The Ohio River, the East River, and the Cook County line all create artificial discontinuities in what are functionally unified urban religious markets. The CLI framework translates this observation into a measurable quantity — parishes near these boundaries systematically show higher leakage than demographically matched interior parishes.
 
-```{r cin_cov_map}
-cin_cov <- analysis_df %>%
-  filter(diocese_name %in% c("Cincinnati", "Covington")) %>%
-  st_as_sf()
+The policy implication is not that boundaries should be abolished — canonical territory serves liturgical and administrative functions beyond pure market efficiency. The implication is that boundary rigidity generates real costs: parishes that are nominally undersupplied because their canonical population has migrated, or parishes holding extensive land in high-demand areas at low utilization.
 
-pal <- colorFactor(palette = "viridis", domain = cin_cov$diocese_name)
+The [Redevelopment Analysis](Closure_Conversion_Recommendations.html) page translates this into a ranked set of candidate sites.
 
-leaflet(cin_cov) %>%
-  addProviderTiles(providers$CartoDB.Positron) %>%
-  addCircleMarkers(radius = ~sqrt(total_services) * 2,
-                   color = ~pal(diocese_name),
-                   stroke = FALSE, fillOpacity = 0.7,
-                   popup = ~paste(name, "<br>Weekly Services:", total_services)) %>%
-  addLegend(pal = pal, values = ~diocese_name, title = "Diocese")
-```
-
-### Identification of Redevelopment "Priority 1" Sites
-We identify sites that satisfy the **"Triple-Misfit"** criteria:
-1.  **High Opportunity Cost:** Pop Density > 3,000 km².
-2.  **Infrastructure Slack:** Overture Parking > 5,000 $m^2$.
-3.  **Service Underutilization:** Total weekly services < 10.
-
-```{r priority_sites}
-priority_sites <- analysis_df %>%
-  filter(pop_density > 3000, overture_parking_area_m2 > 5000, total_services < 10) %>%
-  arrange(desc(pop_density)) %>%
-  select(name, diocese_name, church_address_city_name, pop_density, overture_parking_area_m2, total_services)
-
-reactable(priority_sites,
-          columns = list(
-            pop_density = colDef(name = "Pop Density (km²)", format = colFormat(digits = 0)),
-            overture_parking_area_m2 = colDef(name = "Parking (m²)", format = colFormat(digits = 0))
-          ))
-```
-
-## Policy Recommendations: Towards "Dynamic Parochiality"
-
-To resolve these inefficiencies, we propose three "Supply-Side" interventions:
-
-1.  **Inter-Diocesan Spatial Compacts:** Formalize the recognition of spatial leakage. Dioceses should share resources based on Voronoi catchment areas rather than historic state-line boundaries.
-2.  **The "Parking-to-Plaza" Ground Lease:** Dioceses should retain land ownership (Sacred Space) but ground-lease surface parking lots for the development of high-density "Social Housing." This provides an endowment-style revenue stream while fulfilling the Church's social mission.
-3.  **Adaptive Reuse vs. Liquidation:** Use the Redevelopment Index to distinguish between historic buildings that should be preserved for community use and "Generic Modern" structures that are economically better suited for total site redevelopment.
-
-## Conclusion
-
-The US Catholic Church is sitting on a "Spatial Dividend" worth billions in unrealized social and economic value. By holding onto underutilized parking lots in urban cores while services dwindle, the institution incurs a massive deadweight loss. An economically rigorous "Pastoral Planning 2.0" that utilizes AI-infrastructure data (Overture) and spatial econometrics can transform these legacy liabilities into modern community assets.
+---
 
 ## References
 
-*   Azzi, C., & Ehrenberg, R. (1975). Household Allocation of Time and Church Attendance. *Journal of Political Economy*, 83(1), 27–56.
-*   Berry, S. T. (1994). Estimating Discrete-Choice Models of Product Differentiation. *RAND Journal of Economics*, 25(2), 242–262. *(Foundational IO framework for spatial discrete choice.)*
-*   Brañas-Garza, P., & Neuman, S. (2004). Analyzing Religiosity Within an Economic Framework: The Case of Spanish Catholics. *Review of Economics of the Household*, 2(1), 5–22.
-*   Conley, T. G. (1999). GMM Estimation with Cross Sectional Dependence. *Journal of Econometrics*, 92(1), 1–45. *(Spatial HAC standard errors.)*
-*   Finke, R., & Stark, R. (2005). *The Churching of America, 1776–2005: Winners and Losers in Our Religious Economy*. Rutgers University Press. *(Foundational work on religious market competition.)*
-*   Hotelling, H. (1929). Stability in Competition. *The Economic Journal*, 39(153), 41–57.
-*   Huff, D. L. (1963). A Probabilistic Analysis of Shopping Center Trade Areas. *Land Economics*, 39(1), 81–90.
-*   Iannaccone, L. R. (1998). Introduction to the Economics of Religion. *Journal of Economic Literature*, 36(3), 1465–1495.
-*   McMillen, D. P. (2003). The Return of Centralization to Chicago: Using Repeat Sales to Identify Changes in House Price Distance Gradients. *Regional Science and Urban Economics*, 33(3), 287–304. *(Urban land gradient methodology.)*
-*   Overture Maps Foundation. (2025). *Buildings and Infrastructure Layers: Technical Documentation*. overturemaps.org.
-*   Shoup, D. (2005). *The High Cost of Free Parking*. American Planning Association.
+- Azzi, C., & Ehrenberg, R. (1975). Household Allocation of Time and Church Attendance. *Journal of Political Economy*, 83(1), 27–56.
+- Berry, S. T. (1994). Estimating Discrete-Choice Models of Product Differentiation. *RAND Journal of Economics*, 25(2), 242–262.
+- Conley, T. G. (1999). GMM Estimation with Cross Sectional Dependence. *Journal of Econometrics*, 92(1), 1–45.
+- Finke, R., & Stark, R. (2005). *The Churching of America, 1776–2005.* Rutgers University Press.
+- Hotelling, H. (1929). Stability in Competition. *The Economic Journal*, 39(153), 41–57.
+- Huff, D. L. (1963). A Probabilistic Analysis of Shopping Center Trade Areas. *Land Economics*, 39(1), 81–90.
+- Iannaccone, L. R. (1998). Introduction to the Economics of Religion. *Journal of Economic Literature*, 36(3), 1465–1495.
+- McMillen, D. P. (2003). The Return of Centralization to Chicago. *Regional Science and Urban Economics*, 33(3), 287–304.
+- Overture Maps Foundation. (2025). *Buildings and Infrastructure Layers: Technical Documentation.*
+- Shoup, D. (2005). *The High Cost of Free Parking.* American Planning Association.

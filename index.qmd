@@ -5,25 +5,19 @@ author: "Benedict Leonardi"
 toc: false
 ---
 
-The Roman Catholic Church in the United States operates an inherited spatial infrastructure — over 23,000 geolocated parishes — whose boundaries were drawn for a pedestrian-accessible, high-adherence 19th century. This project examines what happens when those legacy structures meet 21st-century demographic realities: automobile mobility, declining participation, and a chronic urban housing shortage.
+The Roman Catholic Church in the United States operates an inherited spatial infrastructure — approximately 23,000 geolocated parishes — whose boundaries were drawn for a pedestrian-accessible, high-adherence 19th century. This project examines what happens when those legacy structures meet 21st-century demographic realities: automobile mobility, declining participation, and a chronic urban housing shortage.
 
-The central concept is **canonical rigidity**: the tendency of territorial parish boundaries to persist long after the demographic conditions that justified them have changed. The analyses here quantify the degree of that mismatch, estimate its consequences for service delivery efficiency, and explore what alternative uses for underutilized sacred land — especially surface parking in urban cores — might look like.
+The central concept is **canonical rigidity**: the tendency of territorial parish boundaries to persist long after the demographic conditions that justified them have changed. The two analyses here quantify the degree of that mismatch and explore its implications for service delivery efficiency and urban land use.
 
 ---
 
-### Analyses
+### [Spatial Analysis →](Canonical_Rigidity_Research_Paper.html)
 
-- [**Canonical Rigidity & Spatial Leakage**](Canonical_Rigidity_Research_Paper.html)\
-  Spatial econometric analysis of service-to-population density mismatches. Uses Voronoi tessellations as a "natural market area" counterfactual and a Huff gravity model to estimate the share of canonical population that the model assigns to competing parishes.
+The main analysis. Theoretical framework (Hotelling, Huff gravity model), identification strategy (Voronoi counterfactuals, Canonical Leakage Index), and econometric analysis of the service-density elasticity. Includes case studies of three cross-boundary metro areas — Cincinnati/Covington, New York/Brooklyn, and Chicago/Joliet — where physical geography produces the clearest examples of canonical leakage.
 
-- [**Economics of Consolidation**](Economics_of_Church_Consolidation.html)\
-  Market consolidation modeling and identification of high-value real estate assets whose current use is inconsistent with surrounding land economics.
+### [Redevelopment Analysis →](Closure_Conversion_Recommendations.html)
 
-- [**Sacred Spaces to Social Housing**](Closure_Conversion_Recommendations.html)\
-  Strategic analysis of converting underutilized urban church parking into multi-family residential housing via ground-lease structures.
-
-- [**Spiritual Landscapes**](Spiritual_Landscapes_Paper.html)\
-  Geospatial and demographic mapping of the Church's physical presence across the US — where parishes are, relative to where Catholics are.
+A ranked set of candidate sites where service underutilization, population density, and surface parking footprint (Overture Maps verified) jointly indicate a severe mismatch between institutional use and urban land economics. Searchable table and interactive map covering all major US dioceses.
 
 ---
 
