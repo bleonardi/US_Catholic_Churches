@@ -1,6 +1,6 @@
 ---
 title: "Canonical Rigidity and the Misallocation of Sacred Space: A Spatial Econometric Analysis of the US Catholic Church"
-subtitle: "Working Paper Series in Urban and Religious Economics"
+subtitle: "A Spatial Econometric Analysis"
 author:
   - name: "Benedict Leonardi"
     affiliations: "University of Cincinnati, Department of Economics"
