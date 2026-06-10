@@ -1,6 +1,12 @@
 project:
   type: website
   output-dir: docs
+  render:
+    - index.qmd
+    - Canonical_Rigidity_Research_Paper.qmd
+    - Economics_of_Church_Consolidation.qmd
+    - Spiritual_Landscapes_Paper.qmd
+    - Closure_Conversion_Recommendations.qmd
 
 website:
   title: "US Catholic Churches Analysis"
@@ -17,5 +23,5 @@ website:
 
 format:
   html:
-    theme: simplex
+    theme: flatly
     toc: true
