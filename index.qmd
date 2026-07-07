@@ -22,3 +22,8 @@ A ranked set of candidate sites where service underutilization, population densi
 ---
 
 *Built in R (sf, tidyverse) and Python (Overture Maps API), rendered with Quarto.*
+
+
+---
+
+*[View source on GitHub](https://github.com/bleonardi/US_Catholic_Churches){target="_blank"}*
