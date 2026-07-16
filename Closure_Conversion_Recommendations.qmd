@@ -116,6 +116,143 @@ leaflet(top_recommendations, height = 580) %>%
 
 ---
 
+## Detroit AOD: Ranked Redevelopment Candidates
+
+The Archdiocese of Detroit's 2025–26 restructuring process (*Acts of the Disciples*) produced parish workbooks for all 209 active parishes containing financial data not available in the national dataset — deferred maintenance costs, fiscal year 2024–25 annual revenue, and cash savings balances. Combining these figures with Voronoi-based population density estimates allows a more precise redevelopment ranking for this diocese: rather than relying on a proxy composite, we can compute a direct financial-stress metric and weight it by the population-density opportunity cost of the underlying land.
+
+```{r det-redev-table}
+library(scales)
+
+aod_raw <- read_csv("aod_voronoi_data.csv", show_col_types = FALSE)
+
+det_scored <- aod_raw %>%
+  mutate(
+    stress_score       = ifelse(!is.na(deferred_maint_usd) & !is.na(rev_fy2425) & rev_fy2425 > 0,
+                                deferred_maint_usd / rev_fy2425, NA_real_),
+    redevelopment_index = stress_score * pop_density / 1e6
+  ) %>%
+  filter(!is.na(stress_score), !is.na(redevelopment_index), pop_density > 500) %>%
+  arrange(desc(redevelopment_index))
+
+q75 <- quantile(det_scored$redevelopment_index, 0.75, na.rm = TRUE)
+q50 <- quantile(det_scored$redevelopment_index, 0.50, na.rm = TRUE)
+
+det_scored %>%
+  slice_head(n = 25) %>%
+  select(short_name, city, cohort,
+         deferred_maint_usd, rev_fy2425,
+         stress_score, pop_density, redevelopment_index) %>%
+  reactable(
+    searchable  = TRUE,
+    filterable  = TRUE,
+    striped     = TRUE,
+    highlight   = TRUE,
+    columns = list(
+      short_name          = colDef(name = "Parish"),
+      city                = colDef(name = "City"),
+      cohort              = colDef(name = "Cohort"),
+      deferred_maint_usd  = colDef(
+        name = "Deferred Maint.",
+        cell = function(v) scales::dollar(v, scale = 1e-3, suffix = "K")
+      ),
+      rev_fy2425          = colDef(
+        name = "Annual Revenue",
+        cell = function(v) scales::dollar(v, scale = 1e-3, suffix = "K")
+      ),
+      stress_score        = colDef(
+        name = "Stress Score",
+        cell = function(v) round(v, 2)
+      ),
+      pop_density         = colDef(
+        name = "Pop/km²",
+        cell = function(v) round(v, 0)
+      ),
+      redevelopment_index = colDef(
+        name = "Redev Index",
+        cell = function(value) {
+          color <- if (value > q75) "#c0392b" else if (value > q50) "#e67e22" else "#27ae60"
+          htmltools::div(style = list(color = color, fontWeight = "bold"), round(value, 3))
+        }
+      )
+    )
+  )
+```
+
+```{r det-redev-map}
+det_map <- det_scored %>%
+  filter(!is.na(latitude), !is.na(longitude))
+
+pal_det <- colorNumeric(palette = "YlOrRd", domain = det_map$redevelopment_index)
+
+leaflet(det_map, height = 520) %>%
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  addCircleMarkers(
+    lng         = ~longitude,
+    lat         = ~latitude,
+    radius      = ~redevelopment_index * 12,
+    fillColor   = ~pal_det(redevelopment_index),
+    color       = "#555555",
+    weight      = 0.8,
+    fillOpacity = 0.75,
+    popup = ~paste0(
+      "<b>", short_name, "</b><br>",
+      "Cohort: ", cohort, "<br>",
+      "Deferred maint.: $", round(deferred_maint_usd / 1e3), "K<br>",
+      "Stress score: ", round(stress_score, 2), "<br>",
+      "Pop density: ", round(pop_density), " /km²<br>",
+      "Redev index: ", round(redevelopment_index, 3)
+    )
+  ) %>%
+  addLegend(pal = pal_det, values = ~redevelopment_index,
+            title = "Redev Index", position = "bottomright")
+```
+
+```{r det-parking-shadow}
+parking <- read_csv("overture_parking_results.csv", show_col_types = FALSE)
+
+det_parking <- aod_raw %>%
+  inner_join(parking, by = "psuedo_id") %>%
+  filter(!is.na(overture_parking_area_m2), overture_parking_area_m2 > 0) %>%
+  mutate(
+    shadow_rate     = ifelse(pop_density >= 1000, 1076, 538),
+    shadow_rent_usd = overture_parking_area_m2 * shadow_rate
+  )
+
+total_land_value  <- sum(det_parking$shadow_rent_usd, na.rm = TRUE)
+n_parishes        <- nrow(det_parking)
+med_deferred      <- median(det_parking$deferred_maint_usd, na.rm = TRUE)
+
+cat(sprintf(
+  "Parishes with parking data: %d\nTotal implied parking land value: $%s\nMedian deferred maintenance: $%s\n",
+  n_parishes,
+  scales::dollar(total_land_value),
+  scales::dollar(med_deferred)
+))
+
+ggplot(det_parking,
+       aes(x = reorder(short_name, shadow_rent_usd),
+           y = shadow_rent_usd / 1e6,
+           color = cohort)) +
+  geom_segment(aes(xend = short_name, yend = 0), linewidth = 0.6) +
+  geom_point(size = 3) +
+  geom_hline(yintercept = med_deferred / 1e6,
+             linetype = "dashed", color = "#c0392b", linewidth = 0.8) +
+  annotate("text", x = 1, y = med_deferred / 1e6,
+           label = "Median deferred maintenance",
+           vjust = -0.5, hjust = 0, size = 3, color = "#c0392b") +
+  coord_flip() +
+  scale_y_continuous(labels = scales::dollar_format(suffix = "M")) +
+  labs(
+    x     = NULL,
+    y     = "Implied Parking Land Value ($M)",
+    color = "Cohort",
+    title = "Shadow Rent on AOD Parking Footprints vs. Deferred Maintenance"
+  ) +
+  theme_minimal(base_size = 11)
+```
+
+---
+
 ## On the Policy Logic
 
 The redevelopment argument is not that churches should close — it is that the specific sites flagged here represent a category where the mismatch between institutional use and urban land economics is particularly acute. A parish offering 6 weekend Masses in a neighborhood with 4,000 residents per km² and 5,000 m² of surface parking is, from a land-use standpoint, an outlier. What exactly should happen to that site involves canonical, historic preservation, and community considerations well outside the scope of this analysis.
