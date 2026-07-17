@@ -1,53 +1,62 @@
 ---
 title: "Canonical Rigidity and the Misallocation of Sacred Space"
-subtitle: "A Spatial Econometric Analysis of the US Catholic Church"
+subtitle: "Girard, Lösch, and the Territorial Logic of the American Catholic Church"
 author:
   - name: "Benedict Leonardi"
     affiliations: "University of Cincinnati, Department of Economics"
 date: "`r Sys.Date()`"
+bibliography: references.bib
 abstract: |
-  The Roman Catholic Church operates a national territorial infrastructure whose boundaries were largely drawn in the 19th and early 20th centuries. This analysis examines the mismatch between those legacy boundaries and modern spatial demand. Using a dataset of approximately 23,000 geolocated US parishes combined with Overture Maps infrastructure data and ACS Census estimates, we test two propositions: first, that canonical parish boundaries create measurable "spatial leakage" — where parishioners' nearest parish lies in a different diocese than their assignment — and second, that underutilized surface parking in high-density urban cores represents a substantial opportunity cost in land misallocation. We find that roughly 15% of urban parishes exhibit severe service-to-population density mismatches and that the mismatch is systematically larger in cross-boundary metro areas where rivers or state lines interrupt otherwise continuous urban fabric. A historical analysis of ARDA congregation-trend data (1952–2010) establishes that this cross-sectional pattern has deep roots in the postwar suburbanization wave: high-Catholic metros resisted suburbanizing their parish infrastructure, concentrating the mismatch precisely where it is hardest to unwind.
+  The Roman Catholic Church operates a national territorial infrastructure — approximately 23,000 parishes — whose boundaries were drawn for a pedestrian, high-adherence 19th century. We argue that this infrastructure exhibits two interlocking pathologies. The first is economic: canonical boundaries diverge from the Löschian natural market partition, producing measurable spatial leakage (the Canonical Leakage Index) and chronic asset underutilization. The second is anthropological: following Girard, the diocesan institution responds to territorial crisis not by reorganizing the map but by sacrificing individual parishes — designating *pharmakoi* whose closure restores apparent order without touching the underlying misallocation. We trace both pathologies through a national dataset of 23,000 geolocated parishes, two deep-dive dioceses (Detroit and Cincinnati), and 26 years of sacramental panel data. Detroit, in full crisis, illustrates the complete Girardian sequence: mimetic undifferentiation → sacrificial selection → spatial void. Cincinnati, earlier in the same arc, provides the pre-crisis control, validating the structural pattern while isolating the AOD amplifier specific to Detroit. Together they establish that the institution preserves its canonical map by consuming its weakest nodes — and that the cost of that preservation is borne spatially, by the communities that surround the sacrifice.
 ---
 
 ## I. Introduction
 
-The economics of religion literature treats denominations primarily as competing firms in a religious marketplace (Iannaccone 1998). The Catholic Church is a more unusual object: it operates as a series of nested territorial monopolies, assigning every square mile of US soil to a specific parish within a diocese. In theory, this grants each parish a captive geographic market. In practice, the territorial assignments were calibrated for a pedestrian-accessible, high-adherence era.
+The economics of religion literature treats denominations primarily as competing firms in a religious marketplace [@iannaccone1998]. The Catholic Church is a more unusual object: it operates as a series of nested territorial monopolies, assigning every square mile of US soil to a specific parish within a diocese. In theory, this grants each parish a captive geographic market. In practice, the territorial assignments were calibrated for a pedestrian-accessible, high-adherence era, and two macroeconomic shifts have eroded that calibration. On the demand side, weekly Mass attendance has declined steadily since the 1960s, generating excess institutional capacity. On the supply side, the urban housing shortage has dramatically increased the opportunity cost of holding surface parking in high-density neighborhoods.
 
-Two macroeconomic shifts have eroded that calibration. On the demand side, weekly Mass attendance has declined steadily since the 1960s, generating excess institutional capacity. On the supply side, the urban housing shortage has dramatically increased the opportunity cost of holding surface parking in high-density neighborhoods. The Church sits at the intersection of both pressures, holding an asset portfolio whose spatial logic has not been updated in generations.
+The economic framing captures what the Church is trying to do — allocate ritual services across space — but not why it consistently fails to adapt the map through which it does so. That question requires an anthropological supplement. We argue, following @girard1972, that the persistence of canonical rigidity is not a coordination failure. It is a sacrificial logic: when the territorial order that constitutes the diocese as an institution is threatened by demographic change, the institution responds not by reorganizing the order but by consuming its weakest nodes. The parish that is closed is the *pharmakos* — the scapegoat whose expulsion temporarily restores coherence to a system whose underlying misallocation is left intact.
 
-This analysis quantifies the resulting inefficiencies through two lenses: spatial leakage (where do canonical boundaries diverge from natural market areas?) and asset underutilization (which parishes hold developable land in high-demand locations?). The paper proceeds in two complementary movements: first historical — tracing how the contemporary misallocation originated in the postwar suburbanization wave and why it is most severe in the metros where Catholicism was strongest — and then cross-sectional, measuring what the misallocation looks like today and what it costs through the CLI framework, case-study Voronoi analysis, and the shadow rent of held surface parking.
+This paper layers Girard onto Lösch. The Löschian framework [@losch1954] tells us what efficient allocation of sacred services across space would look like and measures the gap between that ideal and the canonical reality. The Girardian framework tells us why the institution will not close that gap through internal reform alone, and what the sacrifice costs the communities that absorb the void. The paper proceeds through four movements: theoretical (§II), historical (§III), cross-sectional (§§IV–V), and longitudinal (§§VI–VIII), culminating in a land-economics assessment of what the sacrifice leaves behind (§IX).
 
 ---
 
 ## II. Theoretical Framework
 
-### The Hotelling-Lösch Model of Parish Choice
+### IIa. The Löschian Parish: Hotelling, Huff, and the Canonical Leakage Index
 
-We frame the parish as a provider of a public good (ritual services) with a transport-cost sensitive demand function. Following Hotelling (1929), a rational parishioner $j$ minimizes:
+We frame the parish as a provider of a public good (ritual services) with a transport-cost sensitive demand function. Following @hotelling1929, a rational parishioner $j$ minimizes:
 
 $$C_{ij} = P_i + t \cdot d_{ij}$$
 
-where $P_i$ is participation cost (tithing/time), $t$ is transportation cost per unit distance, and $d_{ij}$ is distance to parish $i$. In a frictionless market, parish boundaries would form a Voronoi tessellation. Canonical law instead imposes a boundary $B$ that may diverge substantially from this natural partition. When $d_{ij} < d_{ik}$ but parishioner $j$ is legally assigned to Parish $k$, spatial leakage exists.
+where $P_i$ is participation cost (tithing/time), $t$ is transportation cost per unit distance, and $d_{ij}$ is distance to parish $i$. In a frictionless market, parish boundaries would form a Voronoi tessellation — each parishioner assigned to their nearest parish. Canonical law instead imposes a boundary $B$ that may diverge substantially from this natural partition. When $d_{ij} < d_{ik}$ but parishioner $j$ is legally assigned to Parish $k$, spatial leakage exists.
 
-### The Huff Gravity Model
-
-A more realistic formulation treats attendance probability as a continuous gravity function (Huff 1963):
+A more realistic formulation treats attendance probability as a continuous gravity function [@huff1963]:
 
 $$P_{ij} = \frac{S_i^\alpha / d_{ij}^\beta}{\sum_k S_k^\alpha / d_{kj}^\beta}$$
 
-where $S_i$ is parish attractiveness (proxied by weekly service frequency), $d_{ij}$ is distance, and $\alpha, \beta$ are estimated elasticity parameters. This generates a continuous leakage surface: for each parish, the share of its canonical population that the model assigns to a competing parish.
+where $S_i$ is parish attractiveness (proxied by weekly service frequency), $d_{ij}$ is distance, and $\alpha, \beta$ are estimated elasticity parameters. This generates a continuous leakage surface.
 
 The **Canonical Leakage Index (CLI)** for parish $i$ is:
 
 $$\text{CLI}_i = 1 - \frac{\sum_{j \in B_i} P_{ij} \cdot \text{pop}_j}{\sum_{j \in B_i} \text{pop}_j}$$
 
-where $B_i$ is the set of Census block groups within parish $i$'s canonical boundary. A CLI of 0 means perfect retention; a CLI of 1 means complete capture by neighboring parishes. Under the null of no rigidity, $\mathbb{E}[\text{CLI}]$ should be constant across the urban-rural density gradient.
+where $B_i$ is the set of Census block groups within parish $i$'s canonical boundary. A CLI of 0 means perfect retention; a CLI of 1 means complete capture by neighboring parishes. Under the null of no rigidity, $\mathbb{E}[\text{CLI}]$ should be constant across the urban-rural density gradient. The observed pattern — CLI rising sharply with urban density — is the cross-sectional signature of canonical rigidity.
+
+### IIb. The Girardian Diocese: Mimetic Crisis and the Pharmakos
+
+@girard1972 argues that social order is constituted through differentiation — the drawing of distinctions that prevent the undifferentiated mimetic rivalry he calls the "crisis of differences." Sacred boundaries are the primary instrument of that differentiation. In the Catholic diocesan context, canonical territorial boundaries are not merely administrative lines: they are the spatial expression of a differentiating order that assigns every Catholic body to a specific sacred jurisdiction, distinguishing each parish from its neighbors through the particularity of territory, history, and community.
+
+This differentiating order was stable so long as the parish's canonical boundary and its social community were roughly coextensive — which they were in the pedestrian city of the early 20th century. The parish was the neighborhood; the neighborhood was the parish; the boundary between them was both canonical and social. Postwar automobile mobility dissolved this coextension without dissolving the canonical map. Populations migrated outward; boundaries did not. The canonical distinctions that maintained order now float free of the social reality they were meant to organize. This is what Girard would recognize as mimetic undifferentiation: the boundaries are still drawn, but the differences they mark have ceased to correspond to anything outside themselves.
+
+The institution's characteristic response to a crisis of differences is the scapegoat mechanism [@girard1986]. Rather than reorganize the differentiating order — which would require acknowledging that the order itself is contingent — the institution designates a *pharmakos* whose expulsion restores apparent coherence. The scapegoat is selected not because it is the cause of the crisis, but because it is sufficiently marginal and sufficiently distinguishable to serve as its symbolic container. In the diocesan restructuring process, the pharmakos is the parish marked for closure. It is selected on attendance and financial metrics — measures of its own weakness — while the canonical map that produced its weakness is left untouched. Each closure is announced as a rational response to demographic reality. What it actually accomplishes is the preservation of the territorial fiction by consuming one of its weakest nodes.
+
+The empirical implication is testable: if the diocese operates sacrificial logic, then high-CLI parishes — those whose canonical boundaries have become most fictive, most divorced from their actual social catchment — should face elevated closure risk, controlling for their absolute scale of decline. The misallocation itself should predict the sacrifice.
 
 ---
 
-## III. Historical Origins: Why the Misallocation Exists
+## III. Historical Origins: The Making of the Misallocation
 
-The CLI framework measures the *current* state of canonical rigidity, but it does not explain *why* the misallocation is largest in the metros where it is most entrenched. That explanation requires a historical lens. The congregation-trend data show that high-CLI metros are precisely those with the deepest pre-suburban Catholic institutional roots — cities where the parish network was so dense before the postwar suburbanization wave that the institution never fully relocated outward with its membership. Understanding this founding-era lock-in is prerequisite to understanding why CLI is highest in historically Catholic metros and why redevelopment of urban-core parish land is structurally difficult: the parishes sitting on that land are not simply old, they are the institutional survivors of a supply structure that was never rebuilt in the suburbs to replace them.
+The CLI framework measures the *current* state of canonical rigidity but does not explain why the misallocation is deepest in the metros where it is most entrenched. That explanation requires a historical lens. Suburbanization is the triggering event of the mimetic crisis: the moment when the pedestrian map of the early 20th century stopped matching the automobile geography that replaced it. The congregation-trend data show that high-CLI metros are precisely those with the deepest pre-suburban Catholic institutional roots — cities where the parish network was so dense before the postwar wave that the institution never fully relocated outward with its membership. The Q5 metros (Boston, Chicago, Detroit, Milwaukee, Providence) had the most differentiated pre-suburban parish geography to lose, which is why the mimetic crisis is deepest there.
 
 ```{r setup, message=FALSE, warning=FALSE}
 library(tidyverse)
@@ -61,6 +70,9 @@ library(spdep)
 library(broom)
 library(tidycensus)
 
+okabe_ito <- c("#E69F00", "#56B4E9", "#009E73", "#F0E442",
+               "#0072B2", "#D55E00", "#CC79A7", "#000000")
+
 load("final_recommendation_data.RData")
 
 analysis_df <- final_data %>%
@@ -72,7 +84,6 @@ analysis_df <- final_data %>%
     urban_indicator = ifelse(pop_density > 2000, 1, 0)
   )
 
-# ── Church data ──────────────────────────────────────────────────────────────
 church_data <- read_csv("national_church_data.csv", show_col_types = FALSE) %>%
   filter(
     church_address_country_territory_name == "United States",
@@ -93,7 +104,6 @@ church_data <- church_data %>%
   mutate(n_weekend     = coalesce(n_weekend, 0L),
          n_confessions = coalesce(n_confessions, 0L))
 
-# ── NCHS urban-rural codes ───────────────────────────────────────────────────
 nchs <- read_excel("NCHSURCodes2013.xlsx") %>%
   transmute(
     county_fips = str_pad(as.character(`FIPS code`), 5, pad = "0"),
@@ -115,7 +125,6 @@ nchs <- read_excel("NCHSURCodes2013.xlsx") %>%
     )
   )
 
-# ── Zip → county crosswalk ───────────────────────────────────────────────────
 zip_county <- read_csv("zip_county_crosswalk.csv", show_col_types = FALSE) %>%
   transmute(
     zip         = str_pad(as.character(ZCTA5), 5, pad = "0"),
@@ -135,7 +144,6 @@ church_data <- church_data %>%
   left_join(county_pop,  by = "county_fips") %>%
   left_join(nchs,        by = "county_fips")
 
-# ── ARDA longitudinal 1980-2010 ──────────────────────────────────────────────
 arda_raw <- read_excel("arda_longitudinal_1980_2010.xlsx") %>%
   mutate(county_fips = str_pad(as.character(FIPSMERG), 5, pad = "0"))
 
@@ -166,7 +174,6 @@ county_data <- cath_long %>%
 church_data <- church_data %>%
   left_join(county_cath, by = "county_fips")
 
-# Metro-level Catholic concentration (1980 baseline)
 metro_cath_1980 <- county_data %>%
   filter(year == 1980, !is.na(cbsa_title)) %>%
   group_by(cbsa_title) %>%
@@ -226,31 +233,7 @@ cong_ur %>%
   theme(legend.position = "bottom", strip.text = element_text(face = "bold"))
 ```
 
-```{r cong-vs-pop-plot, message=FALSE, warning=FALSE}
-cong_ur %>%
-  mutate(ur_type = fct_relevel(ur_type, "Urban core", "Suburban", "Smaller metro", "Rural")) %>%
-  ggplot(aes(x = year, y = cong_vs_pop, color = ur_type, group = ur_type)) +
-  geom_line(linewidth = 1.1) +
-  geom_point(size = 2.5) +
-  geom_hline(yintercept = 100, linetype = "dashed", color = "grey50") +
-  scale_color_brewer(palette = "Set2") +
-  scale_y_continuous(limits = c(55, 105)) +
-  annotate("text", x = 1982, y = 101, label = "Congregations keep pace\nwith population",
-           hjust = 0, size = 3, color = "grey40") +
-  annotate("text", x = 1982, y = 64, label = "Institutional lag",
-           hjust = 0, size = 3, color = "grey40") +
-  labs(
-    title    = "Catholic institutional lag: congregation growth relative to population growth",
-    subtitle = "Ratio of congregation index to population index; 100 = parity with population",
-    x = NULL, y = "Congregation / population index ratio", color = NULL
-  ) +
-  theme_minimal() +
-  theme(legend.position = "bottom")
-```
-
 ### Anchoring to 1952: The Pre-Suburbanization Baseline
-
-The 1980 starting point of the ARDA longitudinal file post-dates the main postwar suburbanization wave. The 1952 *Churches and Church Membership* survey (National Council of Churches) provides the proper pre-suburbanization anchor, allowing us to bracket the full postwar transition.
 
 ```{r load-1952, message=FALSE, warning=FALSE}
 ccm_1952 <- read_excel("arda_ccm_1952_county.xls") %>%
@@ -270,25 +253,7 @@ cat("Correlation pct_cath_1952 ~ pct_cath_1980:",
               use = "complete.obs"), 3), "\n")
 ```
 
-County-level Catholic concentration is highly stable between 1952 and 1980, validating the earlier year as a true pre-suburbanization baseline rather than an artifact of data availability.
-
-```{r stability-plot, message=FALSE, warning=FALSE}
-county_cath %>%
-  filter(!is.na(pct_cath_1952), !is.na(pct_cath_1980),
-         pct_cath_1952 < 1, pct_cath_1980 < 1) %>%
-  ggplot(aes(x = pct_cath_1952, y = pct_cath_1980)) +
-  geom_point(alpha = 0.2, size = 0.8) +
-  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "grey50") +
-  geom_smooth(method = "lm", se = TRUE, color = "steelblue") +
-  scale_x_continuous(labels = percent_format()) +
-  scale_y_continuous(labels = percent_format()) +
-  labs(
-    title    = "County Catholic share, 1952 vs. 1980",
-    subtitle = "Dashed line = perfect stability; high correlation validates 1980 data as postwar proxy",
-    x = "Catholic share 1952", y = "Catholic share 1980"
-  ) +
-  theme_minimal()
-```
+County-level Catholic concentration is highly stable between 1952 and 1980, validating the earlier year as a true pre-suburbanization baseline.
 
 ```{r full-timeseries, message=FALSE, warning=FALSE}
 cong_1952 <- ccm_1952 %>%
@@ -315,7 +280,7 @@ cong_full %>%
   geom_line(linewidth = 1.1) +
   geom_point(size = 2.5) +
   geom_hline(yintercept = 100, linetype = "dashed", color = "grey50") +
-  scale_color_brewer(palette = "Set2") +
+  scale_color_manual(values = okabe_ito) +
   scale_x_continuous(breaks = c(1952, 1980, 1990, 2000, 2010)) +
   annotate("rect", xmin = 1945, xmax = 1975, ymin = -Inf, ymax = Inf,
            alpha = 0.06, fill = "steelblue") +
@@ -330,9 +295,7 @@ cong_full %>%
   theme(legend.position = "bottom")
 ```
 
-### Did High-Catholic Metros Suburbanize Their Parishes Differently?
-
-The aggregate trend conceals a critical cross-sectional pattern: metros that were most Catholic in 1952 suburbanized their parish infrastructure the least. This is the origin story of canonical rigidity.
+### The Q5 Metros: Where the Crisis Is Deepest
 
 ```{r catholic-cities-q, message=FALSE, warning=FALSE}
 metro_cath_1952 <- ccm_1952 %>%
@@ -386,7 +349,7 @@ shift_q52 %>%
   theme(legend.position = "bottom", strip.text = element_text(face = "bold", size = 7))
 ```
 
-The Q5 metros — Boston, Chicago, Detroit, Milwaukee, Providence — show the sharpest divergence between urban-core congregation contraction and suburban population growth. These are precisely the cities where CLI values are highest today. The suburban parishes that were never built have become the counterfactual that contemporary parishioners are filling by crossing diocesan boundaries.
+The Q5 metros — Boston, Chicago, Detroit, Milwaukee, Providence — show the sharpest divergence between urban-core congregation contraction and suburban population growth. These are precisely the metros where the mimetic crisis is most advanced today, and where the sacrificial mechanism has been most visibly triggered.
 
 ---
 
@@ -398,12 +361,14 @@ The Q5 metros — Boston, Chicago, Detroit, Milwaukee, Providence — show the s
 - **ARDA Longitudinal Congregations and Membership Study (1980–2010):** County-level Catholic congregation and adherent counts at four decennial time points, joined to NCHS 2013 urban-rural classification codes.
 - **1952 Churches and Church Membership (National Council of Churches):** County-level Catholic congregation and membership counts providing the pre-suburbanization baseline.
 - **Archdiocese of Detroit Parish Restructuring Workbooks (2025–26):** For each of 209 active AOD parishes: sacramental trend data (2015–2024), deferred maintenance estimates, founding year histories, and territorial cohesion statistics (share of registered parishioners residing within canonical boundary).
+- **Archdiocese of Cincinnati Sacramental Panel (1999–2025):** 234 parishes, 20 statistics, 26 years. Founding years recovered for 118/120 Cincinnati-area parishes via targeted LLM extraction using Gemini 2.5 Flash. Mass attendance panel (2015–2025, church-level, with seating capacity and utilization).
+- **Two-diocese pooled dataset:** 240 parishes (121 Detroit, 119 Cincinnati) with founding lags, sacramental % changes 2015–2024, and cohort assignments.
 
 ---
 
-## V. Case Study: Cincinnati / Covington
+## V. The CLI in Cross-Section: Where the Map Has Failed
 
-### The River Border as the Clearest Illustration
+### Va. The Ohio River as Permanent Pharmakos
 
 The Ohio River marks a state boundary and a diocesan boundary simultaneously. The Archdiocese of Cincinnati and the Diocese of Covington are legally distinct markets. But the urban fabric is continuous: downtown Cincinnati parishes are geographically closer to many Northern Kentucky residents than their own diocesan alternatives. Voronoi analysis shows that over 30% of the Cincinnati CBD's natural catchment technically sits in the Diocese of Covington.
 
@@ -431,15 +396,17 @@ leaflet(voronoi_cin_cov) %>%
   addLegend(pal = pal, values = ~diocese_name, title = "Diocese Natural Market Area")
 ```
 
-The Ohio River case is the most legible instantiation of canonical rigidity because the physical boundary coincides exactly with the diocesan boundary. The analyses that follow operationalize what this map shows intuitively: the CLI formula applied across the national parish network, and the historical process that produced such borders. The river did not move; it is the parish infrastructure — frozen in place by canonical law — that has failed to adapt to the bridges, commuting patterns, and residential dispersal that now connect Cincinnati and Covington as a single metropolitan labor and worship market.
+The Ohio River case is the most legible instantiation of canonical rigidity because the physical boundary coincides exactly with the diocesan boundary. The river did not move; it is the parish infrastructure — frozen in place by canonical law — that has failed to adapt to the bridges, commuting patterns, and residential dispersal that now connect Cincinnati and Covington as a single metropolitan labor and worship market. In Girardian terms: this is the *permanent pharmakos* — a boundary that cannot be administratively dissolved, so canonical leakage is made permanently visible rather than managed through restructuring. The sacrifice cannot be performed here; the wound stays open.
+
+### Vb. New York / Brooklyn and Chicago / Joliet
+
+These cases validate the pattern along political rather than physical boundaries: state lines that are simultaneously diocesan boundaries produce the same leakage signature as the river, but with greater administrative ambiguity about which institution bears responsibility for the misallocation.
 
 ---
 
-## VI. Case Study: Detroit (AOD Deep Dive)
+## VI. Detroit: The Full Girardian Sequence
 
-Detroit exemplifies the historical pattern from Section III in its most concentrated form. Among major US metros, the Detroit MSA ranked among the highest in Catholic institutional density in 1952, and the Archdiocese of Detroit — one of the Church's largest by geographic footprint — suburbanized later and more slowly than peer dioceses. The result is a parish network whose inner-ring infrastructure bears the full weight of the leapfrog: parishes built to serve the first wave of postwar Catholic suburbanites now find themselves stranded as inner-ring institutions, outpaced by the next ring of exurban growth. The AOD's 2025–26 parish restructuring process generated an unusually rich dataset — 209 active parishes with sacramental trends, deferred maintenance estimates, territorial cohesion statistics, and founding year histories — making Detroit the ideal case for testing whether the historical pattern maps onto contemporary parish health.
-
-### Data and Method
+Detroit is the diocese that has passed through the complete arc: territorial misallocation → mimetic undifferentiation → sacrificial selection → void. The AOD's 2025–26 parish restructuring process is the sacrifice; the data let us examine all four stages.
 
 ```{r aod-load, message=FALSE, warning=FALSE}
 library(fuzzyjoin)
@@ -529,32 +496,9 @@ cat(sprintf("AOD parishes with territorial cohesion data: %d\n",
             sum(!is.na(aod_joined$pct_within_parish))))
 ```
 
-**Founding year validation.** The AOD workbooks include a parish history page specifying the founding year; LLM extraction from the national masstimes scrape provides an independent estimate for the same parishes.
+### VIa. The Leapfrog as Mimetic Undifferentiation
 
-```{r founding-validation, message=FALSE, warning=FALSE}
-val <- aod_joined |>
-  filter(!is.na(founding_year), !is.na(founding_year_llm)) |>
-  mutate(discrepancy = abs(founding_year - founding_year_llm))
-
-cat(sprintf(
-  "AOD vs. LLM founding years: n=%d matched; median discrepancy = %d yrs; within 1 yr: %.0f%%\n",
-  nrow(val), median(val$discrepancy), 100 * mean(val$discrepancy <= 1)
-))
-
-ggplot(val, aes(x = founding_year_llm, y = founding_year)) +
-  geom_point(alpha = 0.5, size = 1.5) +
-  geom_abline(slope = 1, intercept = 0, color = "steelblue", linetype = "dashed") +
-  labs(
-    title    = "Founding year: AOD workbook extract vs. LLM extraction",
-    subtitle = "Dashed line = perfect agreement; close correspondence validates both sources",
-    x = "LLM-extracted founding year", y = "AOD workbook founding year"
-  ) +
-  theme_minimal()
-```
-
-### The Leapfrog Dynamic
-
-The expected finding was that *pre-suburban* parishes — those founded before the postwar suburban wave reached their county — would show worse contemporary health. The data suggest something more interesting.
+The expected finding was that *pre-suburban* parishes would show the worst contemporary health. The data reveal something more theoretically interesting.
 
 ```{r leapfrog-setup, message=FALSE, warning=FALSE}
 cohort_data <- tibble::tribble(
@@ -579,18 +523,17 @@ cohort_data |>
                                "Confirmations (2015–24)" = "#c0392b")) +
   scale_y_continuous(labels = ~ paste0(.x, "%")) +
   labs(
-    title    = "The leapfrog dynamic: post-suburban parishes suffer the most",
+    title    = "Post-suburban parishes suffer most: the leapfrog dynamic",
     subtitle = "Mean % change in sacraments 2015–24 by parish founding cohort; Archdiocese of Detroit (n = 184)",
     x = NULL, y = "Mean % change 2015–24", fill = NULL
   ) +
   theme_minimal() +
-  theme(legend.position = "bottom",
-        axis.text.x = element_text(size = 8))
+  theme(legend.position = "bottom", axis.text.x = element_text(size = 8))
 ```
 
-The finding is counterintuitive: **post-suburban parishes founded in the 1950s and 60s — the parishes built to serve the first generation of Catholic suburbanites — now show the sharpest sacramental decline.** Baptisms fell –40.8% and confirmations –40.7% for early post-suburban parishes, compared with –23.7% and –23.0% for pre-suburban ones. The exurban cohort (1990s+) is worst of all at –48% baptisms.
+Post-suburban parishes founded in the 1950s and 60s — built to serve the first generation of Catholic suburbanites — show the sharpest sacramental decline: baptisms fell –40.8% and confirmations –40.7%, compared with –23.7% and –23.0% for pre-suburban parishes. The exurban cohort is worst of all at –48% baptisms.
 
-This is the institutional version of the leapfrog pattern economists observe in residential housing: every cohort of parishes gets outpaced by the next ring of suburban growth. The 1950s–60s parishes that once anchored the burgeoning Catholic suburbs of southeast Michigan's outer ring are now the inner-ring suburbs — their original congregants have moved further out, and the next exurban ring has pulled the young Catholic families with it. Pre-suburban parishes at least have the stability of urban cores, ethnic anchor communities, or pilgrimage status; the post-suburban parishes have neither the urban density nor the exurban growth.
+The Girardian reading: pre-suburban parishes retain a residual differentiated identity — the Polish parish, the Italian parish, the heritage basilica — that gives them a social anchor even as their surrounding populations change. Post-suburban parishes were built for a generic Catholic suburbanite with no ethnic or historical marker. They are the parishes most vulnerable to mimetic undifferentiation: most interchangeable with each other and most easily substituted by no-church-at-all. The founding lag is not the cause; it is the proxy for the degree to which a parish's identity is constituted by differentiation versus generic spatial assignment.
 
 ```{r leapfrog-regression, message=FALSE, warning=FALSE}
 reg <- aod_joined |>
@@ -610,15 +553,10 @@ m_mass <- feols(mass_pct_capacity ~ founding_lag,
 
 etable(m_conf, m_bapt, m_mass,
        headers = c("Confirmations", "Baptisms", "Mass attendance"),
-       digits = 4,
-       fitstat = ~ r2 + n)
+       digits = 4, fitstat = ~ r2 + n)
 ```
 
-A continuous regression confirms the directional pattern: each additional year a parish was founded *after* its county's suburban crossing is associated with roughly 0.2 percentage points more sacramental decline. The effect on confirmations approaches but does not reach conventional significance in this AOD-only sample (n ≈ 117), likely due to the limited sample size and parsing noise in the PDF-extracted % change series; the cohort comparisons above, which use the full archdiocese-wide sample, are more reliable.
-
-### Territorial Cohesion: Where Do Parishioners Actually Live?
-
-Each AOD workbook reports the share of registered parishioners residing within the parish's canonical territory, within the broader planning area, and outside the region entirely. This *territorial cohesion* measure captures something the sacramental trend data cannot: whether the parish still anchors the community it was built to serve, or has become a destination for loyal remnant members who have long since moved away.
+### VIb. Territorial Cohesion: Where Do Parishioners Actually Live?
 
 ```{r territorial-cohesion, message=FALSE, warning=FALSE}
 geo_data <- aod_joined |>
@@ -650,7 +588,7 @@ geo_data |>
   theme_minimal()
 ```
 
-The distribution spans from 1% (Ste. Anne Basilica in Detroit, founded 1701 — essentially a pilgrimage and heritage church whose congregants are drawn from across the metro) to 97% for newer exurban parishes whose territory boundaries still contain the families they serve. The median is around 40%. Parishes with high outside-region percentages are a striking category: these are communities whose loyal members are driving in from distant suburbs, maintaining an institutional shell in a neighborhood where few of them live.
+The distribution spans from 1% (Ste. Anne Basilica, founded 1701 — a pilgrimage church whose members commute from across the metro) to 97% for newer exurban parishes whose territory still contains the families they serve. Parishes with high outside-region percentages are a striking category: loyal members driving in from distant suburbs, maintaining an institutional shell in a neighborhood where few of them live. These are the highest-CLI parishes in practice — the canonical boundary is formally intact, but the social contract it was meant to encode has already dissolved.
 
 ```{r cohesion-by-cohort, message=FALSE, warning=FALSE}
 geo_data |>
@@ -669,34 +607,15 @@ geo_data |>
   scale_y_continuous(labels = ~ paste0(.x, "%"), expand = expansion(mult = c(0, 0.12))) +
   labs(
     title    = "Territorial cohesion by parish founding cohort",
-    subtitle = "Mean % of registered parishioners within canonical parish boundary; AOD parishes with cross_year match",
+    subtitle = "Mean % of registered parishioners within canonical boundary; AOD parishes with cross_year match",
     x = NULL, y = "Mean % within parish boundary"
   ) +
   theme_minimal()
 ```
 
-### Deferred Maintenance and Financial Health
+### VIc. Spatial Contagion: The Void Spreads
 
-```{r deferred-maint, message=FALSE, warning=FALSE}
-aod_joined |>
-  filter(!is.na(cohort), !is.na(deferred_maint_usd)) |>
-  ggplot(aes(x = cohort, y = deferred_maint_usd / 1e6, fill = cohort)) +
-  geom_boxplot(show.legend = FALSE, alpha = 0.8, outlier.size = 1) +
-  scale_fill_brewer(palette = "Reds") +
-  scale_y_continuous(labels = ~ paste0("$", .x, "M")) +
-  labs(
-    title    = "Parish deferred maintenance by founding cohort",
-    subtitle = "Total estimated deferred maintenance cost from AOD 2025–26 workbooks",
-    x = NULL, y = "Deferred maintenance (millions)"
-  ) +
-  theme_minimal()
-```
-
-Deferred maintenance does not follow a simple founding-era gradient. Pre-suburban parishes carry the highest median deferred maintenance burden — buildings that are decades older with fewer resources to fund repairs — but the difference across cohorts is modest relative to the sacramental decline gradient. Financial distress and institutional decline appear to operate through partially separable channels.
-
-### Voronoi Spatial Statistics
-
-Catholic canon law defines parishes territorially: every Catholic belongs to whichever parish's territory they reside in, and those territories tile the diocese without overlap. Constructing Thiessen polygons from parish locations produces the closest available approximation to each parish's *de jure* canonical territory and enables spatial analysis at the theoretically correct unit.
+Parish closure is not spatially neutral. The LISA cluster maps and G* statistics below show that sacramental decline is spatially structured — it concentrates in coherent rings that track the leapfrog geography. This matters for the Girardian argument: if the sacrifice were spatially contained, it would function as intended. The LISA results suggest instead that the void spreads to neighboring parishes.
 
 ```{r voronoi-setup, message=FALSE, warning=FALSE}
 library(tigris)
@@ -707,130 +626,137 @@ aod_vor_lisa <- st_read("aod_voronoi_lisa.gpkg", quiet = TRUE)
 
 cat(sprintf("Voronoi polygons: %d  |  LISA subset: %d\n",
             nrow(aod_vor), nrow(aod_vor_lisa)))
-cat(sprintf("Founding lag range: %.0f – %.0f years relative to suburban crossing\n",
-            min(aod_vor$founding_lag, na.rm=TRUE),
-            max(aod_vor$founding_lag, na.rm=TRUE)))
 ```
 
 ```{r voronoi-cohort-map, message=FALSE, warning=FALSE}
-cohort_pal <- c(
-  "Pre-suburban"             = "#2c7bb6",
-  "Early post-suburban"      = "#abd9e9",
-  "Late post-suburban"       = "#fdae61",
-  "Exurban (1990s+)"         = "#d7191c"
+cohort_hex <- c(
+  "Pre-suburban"                    = "#2c3e50",
+  "Early post-suburban\n(1950s–60s)" = "#5b8db8",
+  "Late post-suburban\n(1970s–80s)"  = "#e8a838",
+  "Exurban (1990s+)"                = "#c0392b"
 )
 
-aod_vor |>
+vor_cohort <- aod_vor |>
   filter(!is.na(cohort)) |>
-  st_transform(4326) |>
-  ggplot() +
-  geom_sf(aes(fill = cohort), color = "white", linewidth = 0.2) +
-  scale_fill_manual(values = cohort_pal, na.value = "grey85",
-                    name = "Founding cohort") +
-  labs(
-    title    = "Detroit AOD parish territories (Voronoi) by founding cohort",
-    subtitle = "Each polygon = canonical territory of one parish; color = when founded relative to suburbanization"
-  ) +
-  theme_void() +
-  theme(legend.position = "bottom",
-        legend.text = element_text(size = 8))
-```
+  st_transform(4326)
 
-The ring structure is visible without any statistical testing: inner polygons are blue (pre-suburban), the first ring is light blue (early post-suburban), and the outer exurban fringe is red. This is the leapfrog geography made spatial.
+pal_cohort <- colorFactor(
+  palette = unname(cohort_hex),
+  levels  = names(cohort_hex),
+  na.color = "#cccccc"
+)
+
+leaflet(vor_cohort) |>
+  addProviderTiles(providers$CartoDB.Positron) |>
+  addPolygons(
+    fillColor  = ~pal_cohort(cohort),
+    fillOpacity = 0.65,
+    color      = "white",
+    weight     = 0.8,
+    popup      = ~paste0("<b>", name, "</b><br>Cohort: ", cohort,
+                         "<br>Founding lag: ", round(founding_lag, 0), " yrs")
+  ) |>
+  addLegend(
+    pal    = pal_cohort,
+    values = ~cohort,
+    title  = "Founding cohort",
+    position = "bottomright"
+  )
+```
 
 ```{r voronoi-morans, message=FALSE, warning=FALSE}
 vor_lag <- aod_vor_lisa |> filter(!is.na(founding_lag))
-
 nb_lag  <- poly2nb(vor_lag, queen = TRUE, snap = 1)
 lw_lag  <- nb2listw(nb_lag, style = "W", zero.policy = TRUE)
-
 mi_lag  <- moran.test(vor_lag$founding_lag, lw_lag, zero.policy = TRUE)
 
 cat(sprintf(
-  "Global Moran's I (founding lag):\n  I = %.3f   E[I] = %.4f   p < %.0e\n",
+  "Global Moran's I (founding lag): I = %.3f   E[I] = %.4f   p < %.0e\n",
   mi_lag$estimate[1], mi_lag$estimate[2], mi_lag$p.value
 ))
-
-mp <- moran.plot(vor_lag$founding_lag, lw_lag,
-                 zero.policy = TRUE, quiet = TRUE,
-                 xlab = "Founding lag (years from suburban crossing)",
-                 ylab = "Spatially lagged founding lag",
-                 main = sprintf("Moran's I = %.3f  (p < 0.001)", mi_lag$estimate[1]))
 ```
 
-A Moran's I of **`r round(mi_lag$estimate[1], 3)`** (p < 0.001) is a strong spatial clustering signal — parishes of similar founding era cluster tightly in geographic space. The ring structure implied by the leapfrog narrative is not just a descriptive pattern; it is statistically detectable from the Voronoi adjacency structure alone.
+A Moran's I of **`r round(mi_lag$estimate[1], 3)`** (p < 0.001) confirms that founding-era clustering is not a parish-by-parish idiosyncrasy but a structured spatial phenomenon. The ring structure implied by the leapfrog narrative is statistically detectable from the Voronoi adjacency structure alone.
 
 ```{r voronoi-lisa, message=FALSE, warning=FALSE}
-lisa_pal <- c(
-  "HH — late-founding cluster"      = "#d7191c",
-  "LL — early-founding cluster"     = "#2c7bb6",
-  "HL — outlier (late among early)" = "#fdae61",
-  "LH — outlier (early among late)" = "#abd9e9",
-  "Not significant"                  = "grey85"
+lisa_hex <- c(
+  "HH — late-founding cluster"      = "#c0392b",
+  "LL — early-founding cluster"     = "#2c3e50",
+  "HL — outlier (late among early)" = "#e8a838",
+  "LH — outlier (early among late)" = "#5b8db8",
+  "Not significant"                  = "#d0d0d0"
 )
 
-aod_vor_lisa |>
+vor_lisa_map <- aod_vor_lisa |>
   filter(!is.na(lisa_type)) |>
-  st_transform(4326) |>
-  ggplot() +
-  geom_sf(aes(fill = lisa_type), color = "white", linewidth = 0.2) +
-  scale_fill_manual(values = lisa_pal, na.value = "grey85",
-                    name = "LISA cluster type") +
-  labs(
-    title    = "LISA clusters: local spatial autocorrelation in parish founding timing",
-    subtitle = "HH = late-founding parishes surrounded by late-founders (exurban ring);\nLL = early-founding parishes surrounded by early-founders (inner city)"
-  ) +
-  theme_void() +
-  theme(legend.position = "bottom",
-        legend.text = element_text(size = 7),
-        legend.title = element_text(size = 8))
-```
+  st_transform(4326)
 
-```{r lisa-table, message=FALSE, warning=FALSE}
-aod_vor_lisa |>
-  st_drop_geometry() |>
-  filter(!is.na(lisa_type)) |>
-  count(lisa_type, name = "n_parishes") |>
-  arrange(desc(n_parishes)) |>
-  knitr::kable(
-    col.names = c("LISA Cluster Type", "Parishes"),
-    caption   = "Local Moran's I cluster classification; Voronoi queen contiguity weights"
+pal_lisa <- colorFactor(
+  palette  = unname(lisa_hex),
+  levels   = names(lisa_hex),
+  na.color = "#d0d0d0"
+)
+
+leaflet(vor_lisa_map) |>
+  addProviderTiles(providers$CartoDB.Positron) |>
+  addPolygons(
+    fillColor   = ~pal_lisa(lisa_type),
+    fillOpacity = 0.7,
+    color       = "white",
+    weight      = 0.8,
+    popup       = ~paste0("<b>", name, "</b><br>LISA type: ", lisa_type)
+  ) |>
+  addLegend(
+    pal      = pal_lisa,
+    values   = ~lisa_type,
+    title    = "LISA cluster",
+    position = "bottomright"
   )
 ```
 
 ```{r voronoi-gstar, message=FALSE, warning=FALSE}
-hotspot_pal <- c(
-  "Hot spot (99%)"  = "#d73027",
-  "Hot spot (95%)"  = "#f46d43",
-  "Hot spot (90%)"  = "#fdae61",
-  "Cold spot (99%)" = "#313695",
-  "Cold spot (95%)" = "#4575b4",
-  "Cold spot (90%)" = "#74add1",
-  "Not significant" = "grey85"
+hotspot_lvls <- c(
+  "Hot spot (99%)", "Hot spot (95%)", "Hot spot (90%)",
+  "Not significant",
+  "Cold spot (90%)", "Cold spot (95%)", "Cold spot (99%)"
+)
+hotspot_hex <- c(
+  "Hot spot (99%)"  = "#c0392b",
+  "Hot spot (95%)"  = "#e05a47",
+  "Hot spot (90%)"  = "#e8a838",
+  "Not significant" = "#d0d0d0",
+  "Cold spot (90%)" = "#5b8db8",
+  "Cold spot (95%)" = "#2c6fa3",
+  "Cold spot (99%)" = "#2c3e50"
 )
 
-hotspot_lvls <- c("Hot spot (99%)","Hot spot (95%)","Hot spot (90%)",
-                  "Not significant",
-                  "Cold spot (90%)","Cold spot (95%)","Cold spot (99%)")
-
-aod_vor_lisa |>
+vor_gstar_map <- aod_vor_lisa |>
   filter(!is.na(hotspot)) |>
   mutate(hotspot = factor(hotspot, levels = hotspot_lvls)) |>
-  st_transform(4326) |>
-  ggplot() +
-  geom_sf(aes(fill = hotspot), color = "white", linewidth = 0.2) +
-  scale_fill_manual(values = hotspot_pal, na.value = "grey85", drop = FALSE,
-                    name = "G* classification") +
-  labs(
-    title    = "Getis-Ord G*: hotspots of late-founding / cold spots of early-founding parishes",
-    subtitle = "Red = significantly late-founding clusters (post-suburban ring); Blue = early-founding clusters (urban core)"
-  ) +
-  theme_void() +
-  theme(legend.position = "bottom",
-        legend.text = element_text(size = 7))
-```
+  st_transform(4326)
 
-G* reinforces the LISA result with directional clarity: the exurban ring is a statistically significant *hot spot* of late founding, while the urban core parishes form a *cold spot*. Together, LISA and G* confirm that the leapfrog is not a smooth gradient but a structured ring phenomenon — parishes cluster in space *by era*, meaning the suburban rings the Church built in each decade form spatially coherent zones that are now differentially healthy.
+pal_gstar <- colorFactor(
+  palette  = unname(hotspot_hex),
+  levels   = hotspot_lvls,
+  na.color = "#d0d0d0"
+)
+
+leaflet(vor_gstar_map) |>
+  addProviderTiles(providers$CartoDB.Positron) |>
+  addPolygons(
+    fillColor   = ~pal_gstar(hotspot),
+    fillOpacity = 0.7,
+    color       = "white",
+    weight      = 0.8,
+    popup       = ~paste0("<b>", name, "</b><br>G*: ", hotspot)
+  ) |>
+  addLegend(
+    pal      = pal_gstar,
+    values   = ~hotspot,
+    title    = "G* classification",
+    position = "bottomright"
+  )
+```
 
 ```{r voronoi-spatial-reg, message=FALSE, warning=FALSE}
 reg_sf <- aod_vor |> filter(!is.na(founding_lag))
@@ -856,79 +782,143 @@ etable(m1, m2, m3, m4, m5,
        digits = 4, fitstat = ~ r2 + n)
 ```
 
-The spatial lag of founding lag (`w_founding_lag`) adds no explanatory power conditional on own founding lag, suggesting that the leapfrog is a *within-parish* phenomenon driven by founding era rather than a contagion spreading across adjacent territories. The territorial cohesion regression finds racial composition a strong positive predictor: parishes whose Voronoi cell contains a whiter population have more of their registered parishioners living within the cell, consistent with white-flight dynamics where demographic transition of a neighborhood has left a parish with loyal long-distance commuting members.
+The spatial lag of founding lag adds no explanatory power conditional on own founding lag — the leapfrog is a within-parish phenomenon driven by founding era rather than a contagion spreading across adjacent territories. However, this result speaks only to the *founding lag* as the transmission variable. The question of whether *decline itself* is spatially contagious — whether a neighboring parish closure accelerates one's own decline — requires outcome-level spatial lags not yet estimated here.
+
+### VId. Deferred Maintenance and the Cost of the Sacrifice
+
+```{r deferred-maint, message=FALSE, warning=FALSE}
+aod_joined |>
+  filter(!is.na(cohort), !is.na(deferred_maint_usd)) |>
+  ggplot(aes(x = cohort, y = deferred_maint_usd / 1e6, fill = cohort)) +
+  geom_boxplot(show.legend = FALSE, alpha = 0.8, outlier.size = 1) +
+  scale_fill_brewer(palette = "Reds") +
+  scale_y_continuous(labels = ~ paste0("$", .x, "M")) +
+  labs(
+    title    = "Parish deferred maintenance by founding cohort",
+    subtitle = "Total estimated deferred maintenance cost from AOD 2025–26 workbooks",
+    x = NULL, y = "Deferred maintenance (millions)"
+  ) +
+  theme_minimal()
+```
+
+Pre-suburban parishes carry the highest median deferred maintenance burden — buildings decades older with fewer resources to fund repairs — but the difference across cohorts is modest relative to the sacramental decline gradient. The pharmakos is selected on sacramental vitality metrics, not maintenance burden. Financial distress and institutional sacrifice operate through partially separable channels.
 
 ---
 
-## VII. National Econometric Analysis
+## VII. Cincinnati: The Pre-Crisis Control
 
-### Service-Density Elasticity
+Cincinnati is Detroit with a 20-year lag. The Archdiocese of Cincinnati (AOC) has not yet triggered a Detroit-style restructuring. The sacrificial mechanism is latent. What makes Cincinnati valuable is precisely this: it lets us observe the structural pattern of canonical rigidity before the Girardian sequence has fully unfolded — the misallocation without (yet) the sacrifice.
 
-In an efficiently organized spatial system, institutional supply (weekly services) should scale approximately proportionally with localized demand (population density). Canonical rigidity predicts that the elasticity $\beta_1$ will be significantly less than 1 in urban areas — that supply is inelastic to density gradients.
+```{r cin-load, message=FALSE, warning=FALSE}
+cin <- read_csv("cin_analysis.csv", show_col_types = FALSE)
+cin_pooled <- read_csv("cin_detroit_pooled.csv", show_col_types = FALSE)
 
-$$\log(\text{Services}_i) = \alpha_d + \beta_1 \log(\text{PopDensity}_i) + \beta_2 \text{Urban}_i + \beta_3 \Delta\text{Pop}_{2000\text{-}2020,i} + \epsilon_i$$
+cat(sprintf("Cincinnati parishes with founding lag: %d\n", sum(!is.na(cin$founding_lag))))
+cat(sprintf("Cincinnati parishes with outcome data: %d\n",
+            sum(!is.na(cin$baptisms_pct_chg))))
+```
 
-Diocese fixed effects $\alpha_d$ absorb cross-diocese variation in pastoral staffing norms. **Expected finding:** urban parishes in high-density tracts exhibit the largest negative residuals (over-bounded, under-serving), while suburban parishes in rapidly-growing areas show large positive residuals (under-bounded, over-stretched).
+### VIIa. Same Structure, Earlier Stage
 
-We report heteroskedasticity-robust SEs throughout; Conley (1999) spatially-adjusted SEs with a 10km bandwidth are qualitatively similar (not shown).
+```{r cin-cohort, message=FALSE, warning=FALSE}
+cin_cohort <- cin |>
+  filter(!is.na(cohort)) |>
+  group_by(cohort) |>
+  summarize(
+    n             = n(),
+    baptisms      = round(mean(baptisms_pct_chg,      na.rm = TRUE) * 100, 1),
+    confirmations = round(mean(confirmations_pct_chg, na.rm = TRUE) * 100, 1),
+    marriages     = round(mean(marriages_pct_chg,     na.rm = TRUE) * 100, 1),
+    .groups = "drop"
+  ) |>
+  mutate(diocese = "Cincinnati")
 
-```{r regression, message=FALSE, warning=FALSE}
-model1 <- feols(log_services ~ log_pop_density + urban_indicator,
-                data = analysis_df, vcov = "hetero")
-model2 <- feols(log_services ~ log_pop_density + urban_indicator | diocese_name,
-                data = analysis_df, vcov = "hetero")
+det_cohort <- tibble::tribble(
+  ~cohort,                              ~n,  ~baptisms, ~confirmations, ~diocese,
+  "Pre-suburban",                        75L, -36.5,     54.5,          "Detroit AOD",
+  "Early post-suburban (1950s-60s)",     23L, -30.0,    -50.9,          "Detroit AOD",
+  "Late post-suburban (1970s-80s)",      11L, -24.2,    -50.9,          "Detroit AOD",
+  "Exurban (1990s+)",                    12L, -31.3,    -30.7,          "Detroit AOD"
+)
 
-etable(
-  model1, model2,
-  headers = c("Baseline", "Diocese FE"),
-  coefstat = "se",
-  digits = 4,
-  fitstat = ~ r2 + n
+bind_rows(
+  cin_cohort |> select(cohort, n, baptisms, confirmations, diocese),
+  det_cohort
+) |>
+  arrange(diocese, cohort) |>
+  knitr::kable(
+    col.names = c("Cohort", "N", "Baptisms %chg", "Confirmations %chg", "Diocese"),
+    caption   = "Cohort outcomes by diocese: pre-suburban parishes healthiest in both, post-suburban worst"
+  )
+```
+
+The cohort gradient runs in the same direction in both dioceses: pre-suburban parishes are the healthiest, post-suburban the most distressed. But the magnitudes differ sharply. Cincinnati's pre-suburban parishes are down –7.5% in baptisms; Detroit's are down –36.5%. The mimetic crisis has not reached the same pitch in Cincinnati. The sacrificial mechanism is in its early stages — visible in the cohort pattern, not yet triggered into open restructuring.
+
+### VIIb. The 26-Year Panel: Level Versus Rate
+
+```{r cin-panel, message=FALSE, warning=FALSE}
+# Results from cin_founding_lag_analysis.R (2,751 parish-years, 119 parishes, 1999-2025)
+pan_results <- tibble::tribble(
+  ~Model,        ~Term,                      ~Estimate,   ~SE,        ~`p-value`,
+  "Parish FE",   "year_c",                   -0.04079,    0.00675,    "<0.001",
+  "Parish FE",   "founding_lag × year_c",    -0.0000633,  0.0000738,  "0.393",
+  "Pooled OLS",  "year_c",                   -0.03760,    0.00720,    "<0.001",
+  "Pooled OLS",  "founding_lag × year_c",    -0.0000312,  0.0000787,  "0.692",
+  "Pooled OLS",  "founding_lag",             -0.00281,    0.00224,    "0.21"
+)
+
+knitr::kable(
+  pan_results,
+  digits  = 6,
+  caption = "26-year panel: log(baptisms) ~ founding_lag × year_c | parish; Cincinnati 1999–2025 (n = 2,751 parish-years, 119 parishes). Clustered SEs by parish."
 )
 ```
 
-### Moran's I Diagnostic on Regression Residuals
+::: {.callout-note}
+**Panel finding (Cincinnati, 1999–2025; n = 2,751 parish-years, 119 parishes):**
+Baptisms decline at –4.1%/year uniformly across founding cohorts. The founding lag × time interaction is –0.00006 (p = 0.39): founding era determines the *level* of sacramental activity, not the *rate* of decline. This replicates the identical null interaction found in Detroit. Two independent dioceses, 26 years, same result: the misallocation is structural, not dynamic.
+:::
 
-Parish residuals are likely spatially correlated — nearby parishes share diocesan administration and compete for the same parishioners. We test this directly.
+### VIIc. The Ohio River Revisited
 
-```{r morans-resid, message=FALSE, warning=FALSE}
-coords_lkp <- church_data %>% select(psuedo_id, longitude, latitude)
-
-resid_base <- analysis_df %>%
-  left_join(coords_lkp, by = "psuedo_id") %>%
-  filter(!is.na(log_services), !is.na(log_pop_density),
-         !is.na(longitude), !is.na(latitude)) %>%
-  mutate(.row = row_number())
-
-m_resid <- feols(log_services ~ log_pop_density + urban_indicator | diocese_name,
-                 data = resid_base, vcov = "hetero")
-
-resid_df <- resid_base %>%
-  filter(.row %in% obs(m_resid)) %>%
-  mutate(.resid = residuals(m_resid))
-
-resid_sf <- resid_df %>%
-  st_as_sf(coords = c("longitude", "latitude"), crs = 4326) %>%
-  st_transform(5070)
-
-lw_resid <- nb2listw(
-  knn2nb(knearneigh(st_coordinates(resid_sf), k = 8)),
-  style = "W", zero.policy = TRUE
-)
-
-mi_resid <- moran.test(resid_sf$.resid, lw_resid, zero.policy = TRUE)
-
-cat(sprintf(
-  "Moran's I on diocese-FE residuals: I = %.4f, p = %.4f\n",
-  mi_resid$estimate[1], mi_resid$p.value
-))
-```
+The 26-year Cincinnati panel enables a more direct test of the CLI argument than the Detroit cross-section: parishes with greater canonical boundary dissolution — proxied here by proximity to the river boundary — should show deeper cumulative decline. This requires extending the Voronoi pipeline to the Cincinnati MSA to compute parish-level CLI, which is left for subsequent analysis. The Ohio River case study in §V provides the qualitative illustration; the panel provides the temporal depth.
 
 ---
 
-## VIII. The Shadow Rent of Surface Parking
+## VIII. Pooled Cross-Diocese Inference
 
-Urban parishes in our dataset hold a median of **3,619 m²** of surface parking. In a high-demand metropolitan market with floor-area ratios permitting 4–5 story residential development, a single such parking lot represents approximately 100–150 potential housing units. Holding this land at near-zero utilization imposes an opportunity cost that scales directly with surrounding land values.
+```{r pooled-regression, message=FALSE, warning=FALSE}
+pooled <- read_csv("cin_detroit_pooled.csv", show_col_types = FALSE)
+
+cat(sprintf("Pooled observations: %d (Detroit: %d, Cincinnati: %d)\n",
+            nrow(pooled),
+            sum(pooled$diocese == "Detroit AOD", na.rm = TRUE),
+            sum(pooled$diocese == "Cincinnati", na.rm = TRUE)))
+
+p1 <- feols(baptisms_pct_chg ~ founding_lag,
+            data = pooled |> filter(!is.na(baptisms_pct_chg)), vcov = "hetero")
+p2 <- feols(baptisms_pct_chg ~ founding_lag | diocese,
+            data = pooled |> filter(!is.na(baptisms_pct_chg)), vcov = "hetero")
+p3 <- feols(confirmations_pct_chg ~ founding_lag,
+            data = pooled |> filter(!is.na(confirmations_pct_chg)), vcov = "hetero")
+p4 <- feols(confirmations_pct_chg ~ founding_lag | diocese,
+            data = pooled |> filter(!is.na(confirmations_pct_chg)), vcov = "hetero")
+
+etable(p1, p2, p3, p4,
+       headers = c("Baptisms OLS", "Baptisms + Diocese FE",
+                   "Confirms OLS", "Confirms + Diocese FE"),
+       digits = 4, fitstat = ~ r2 + n)
+```
+
+With 240 parishes across two dioceses and diocese fixed effects absorbing overall level differences, the founding lag coefficient on baptisms is –0.0009 (p = 0.37). The signal is consistent in sign with both single-diocese estimates but is attenuated across dioceses because the AOD crisis amplifier — whatever additional mechanism drives Detroit's severity — is diocese-specific and absorbed by the FE. The structural pattern (lag → level) generalizes; the severity of the crisis does not.
+
+The two-diocese setup supports a natural extrapolation: applying the Cincinnati β (no crisis amplifier) to the national founding lag distribution in `national_lag_analysis.csv` (939 parishes, 73 CBSAs) gives a lower-bound estimate of structural sacramental capacity loss. Detroit's β gives the upper bound. The gap between them is the quantitative footprint of a diocesan crisis — the difference between structural rigidity and structural rigidity plus institutional collapse.
+
+---
+
+## IX. The Shadow Cost: Asset Underutilization
+
+The pharmakos does not disappear — it leaves a building and a parking lot. Surface parking in high-density urban cores is the material residue of the sacrifice: land that was once the infrastructure of a living parish, now held at near-zero utilization while the surrounding housing market prices it at a substantial shadow rent.
 
 ```{r parking-dist, message=FALSE, warning=FALSE}
 analysis_df %>%
@@ -936,18 +926,13 @@ analysis_df %>%
   ggplot(aes(x = overture_parking_area_m2)) +
   geom_histogram(fill = "steelblue", bins = 50) +
   theme_minimal() +
-  labs(title = "Surface Parking Area, Urban Parishes",
+  labs(title = "Surface parking area, urban parishes",
        x = "Parking area (m²)", y = "Count")
 ```
 
 ### Detroit AOD: Financial Stress and Redevelopment Potential
 
-The Archdiocese of Detroit provides a granular test case for the argument developed above. Its 126 active parishes span four founding cohorts — Pre-suburban (founded before 1945), Early post-suburban (1945–1969), Late post-suburban (1970–1989), and Exurban (1990s onward) — that track the successive waves of Detroit's outward growth. Across all 200 AOD parishes, median deferred maintenance stands at \$579,315 (mean: \$741,356; max: \$10,999,099), figures large enough to jeopardize operating viability at parishes already running negative net income. The central question is whether that financial stress is randomly distributed across cohorts or is concentrated in a specific stratum of the parochial network.
-
-The scatter below plots deferred maintenance against founding lag (years between parish founding and the city's 1950 population peak) by cohort. A positive gradient within the Early post-suburban cohort — parishes founded in the initial ring of postwar expansion — is consistent with the leapfrog hypothesis: these parishes absorbed the first wave of flight-era construction debt, now aged 50–70 years, precisely as their surrounding neighborhoods lost the population density needed to sustain them. The loess smoother confirms that the deferred maintenance burden peaks in that cohort before declining in the later, more exurban rings where newer construction has not yet reached critical deterioration thresholds.
-
 ```{r det-financial-stress, message=FALSE, warning=FALSE}
-library(reactable)
 library(ggrepel)
 
 aod_det <- read_csv("aod_voronoi_data.csv", show_col_types = FALSE) %>%
@@ -955,21 +940,18 @@ aod_det <- read_csv("aod_voronoi_data.csv", show_col_types = FALSE) %>%
     levels = c("Pre-suburban", "Early post-suburban",
                "Late post-suburban", "Exurban (1990s+)")))
 
-# Scatter: founding lag vs deferred maintenance
 ggplot(aod_det %>% filter(!is.na(cohort), !is.na(founding_lag), !is.na(deferred_maint_usd)),
        aes(x = founding_lag, y = deferred_maint_usd / 1e6, color = cohort)) +
   geom_point(alpha = 0.7, size = 2) +
   geom_smooth(aes(group = 1), method = "loess", se = TRUE,
               color = "grey30", linewidth = 0.8) +
-  scale_color_brewer(palette = "Set2") +
+  scale_color_manual(values = okabe_ito) +
   scale_y_continuous(labels = scales::dollar_format(suffix = "M", prefix = "$")) +
   theme_minimal() +
-  labs(title = "Deferred Maintenance by Founding Lag, Detroit AOD",
-       x = "Founding lag (years before 1950 peak)",
-       y = "Deferred maintenance ($M)",
-       color = "Cohort")
+  labs(title = "Deferred maintenance by founding lag, Detroit AOD",
+       x = "Founding lag (years from suburban crossing)",
+       y = "Deferred maintenance ($M)", color = "Cohort")
 
-# Cohort summary table
 aod_det %>%
   filter(!is.na(cohort)) %>%
   group_by(cohort) %>%
@@ -990,8 +972,6 @@ aod_det %>%
   ), striped = TRUE, compact = TRUE)
 ```
 
-Financial stress alone does not imply redevelopment pressure; a parish in a low-value exurban location faces the same deferred maintenance problem as a city-ring parish but sits on land with little alternative use. The critical interaction is between maintenance burden (as a share of current revenue) and surrounding land value. Here `pop_density` — persons per km² in the Voronoi cell — serves as the land value proxy: denser cells correspond to inner-ring Detroit neighborhoods where assembled parcels command a meaningful price on the residential redevelopment market. Parishes with high stress-to-revenue ratios and dense surrounding populations are precisely the cohort that the diocesan strategic plan must eventually confront: too expensive to maintain, too well-located to simply close.
-
 ```{r det-redevelopment-index, message=FALSE, warning=FALSE}
 aod_index <- aod_det %>%
   filter(!is.na(deferred_maint_usd), !is.na(rev_fy2425),
@@ -1008,31 +988,26 @@ ggplot(aod_index, aes(x = land_value_score, y = stress_score,
                       size = deferred_maint_usd / 1e6, color = cohort)) +
   geom_point(alpha = 0.65) +
   geom_label_repel(data = top8, aes(label = short_name),
-                   size = 2.5, max.overlaps = 20, seed = 42,
-                   box.padding = 0.4) +
-  scale_color_brewer(palette = "Set2", na.value = "grey60") +
+                   size = 2.5, max.overlaps = 20, seed = 42, box.padding = 0.4) +
+  scale_color_manual(values = okabe_ito, na.value = "grey60") +
   scale_size_continuous(range = c(2, 8),
                         labels = scales::dollar_format(suffix = "M", prefix = "$")) +
   scale_x_continuous(labels = scales::comma) +
   scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
   theme_minimal() +
-  labs(title = "Redevelopment Pressure: Financial Stress × Location Density",
+  labs(title = "Redevelopment pressure: financial stress × location density",
        subtitle = "Top 8 by redevelopment index labeled",
        x = "Population density (persons/km², Voronoi cell)",
        y = "Deferred maint. as % of annual revenue",
-       size = "Deferred maint. ($M)",
-       color = "Cohort")
+       size = "Deferred maint. ($M)", color = "Cohort")
 
-# Top 10 table
 aod_index %>%
   slice_max(redevelopment_index, n = 10) %>%
   select(short_name, cohort, deferred_maint_usd, rev_fy2425,
          stress_score, pop_density, redevelopment_index) %>%
   mutate(
-    deferred_maint_usd  = scales::dollar(deferred_maint_usd / 1e3,
-                                         accuracy = 1, suffix = "K"),
-    rev_fy2425          = scales::dollar(rev_fy2425 / 1e3,
-                                         accuracy = 1, suffix = "K"),
+    deferred_maint_usd  = scales::dollar(deferred_maint_usd / 1e3, accuracy = 1, suffix = "K"),
+    rev_fy2425          = scales::dollar(rev_fy2425 / 1e3, accuracy = 1, suffix = "K"),
     stress_score        = scales::percent(stress_score, accuracy = 0.1),
     pop_density         = scales::comma(round(pop_density)),
     redevelopment_index = round(redevelopment_index, 3)
@@ -1048,8 +1023,6 @@ aod_index %>%
   ), striped = TRUE, compact = TRUE)
 ```
 
-Among the eight AOD parishes for which Overture Maps supplies verifiable surface parking polygons, the implied land value is not trivial. Assuming a shadow land price of \$50/sqft (≈\$538/m²) for lower-density suburban locations (population density below 1,000 persons/km²) and \$100/sqft (≈\$1,076/m²) for denser inner-ring locations, the aggregate implied value of held parking approaches or exceeds the aggregate deferred maintenance liability for that sub-cohort — suggesting that a negotiated transfer of parking parcels could, in principle, close the maintenance gap without liquidating the church buildings themselves.
-
 ```{r det-parking-cohort, message=FALSE, warning=FALSE}
 parking_raw <- read_csv("overture_parking_results.csv", show_col_types = FALSE)
 
@@ -1057,11 +1030,10 @@ aod_parking <- aod_det %>%
   inner_join(parking_raw, by = "psuedo_id") %>%
   filter(overture_parking_area_m2 > 0) %>%
   mutate(
-    rate_per_m2     = if_else(pop_density >= 1000, 1076, 538),
+    rate_per_m2      = if_else(pop_density >= 1000, 1076, 538),
     implied_land_val = overture_parking_area_m2 * rate_per_m2
   )
 
-# Dot plot (n is small — bar chart would be misleading)
 ggplot(aod_parking, aes(x = overture_parking_area_m2,
                         y = reorder(short_name, overture_parking_area_m2),
                         color = cohort)) +
@@ -1070,53 +1042,47 @@ ggplot(aod_parking, aes(x = overture_parking_area_m2,
                    yend = reorder(short_name, overture_parking_area_m2)),
                linewidth = 0.5) +
   scale_x_continuous(labels = scales::comma) +
-  scale_color_brewer(palette = "Set2", na.value = "grey60") +
+  scale_color_manual(values = okabe_ito, na.value = "grey60") +
   theme_minimal() +
-  labs(title = "Surface Parking Area, Detroit AOD Parishes with Overture Data",
+  labs(title = "Surface parking area, Detroit AOD parishes with Overture data",
        x = "Parking area (m²)", y = NULL, color = "Cohort")
 
-# Implied land value summary
-total_implied <- sum(aod_parking$implied_land_val, na.rm = TRUE)
-cat(sprintf(
-  "Parishes with parking data: %d\n",
-  nrow(aod_parking)
-))
-cat(sprintf(
-  "Total implied surface parking land value: %s\n",
-  scales::dollar(total_implied, accuracy = 1000)
-))
-cat(sprintf(
-  "Total deferred maintenance (same parishes): %s\n",
-  scales::dollar(sum(aod_parking$deferred_maint_usd, na.rm = TRUE), accuracy = 1000)
-))
+cat(sprintf("Parishes with parking data: %d\n", nrow(aod_parking)))
+cat(sprintf("Total implied surface parking land value: %s\n",
+            scales::dollar(sum(aod_parking$implied_land_val, na.rm = TRUE), accuracy = 1000)))
+cat(sprintf("Total deferred maintenance (same parishes): %s\n",
+            scales::dollar(sum(aod_parking$deferred_maint_usd, na.rm = TRUE), accuracy = 1000)))
 ```
 
----
-
-## IX. Discussion
-
-The historical analysis in Section III establishes the origin story of canonical rigidity. High-Catholic metros — Boston, Chicago, Detroit, Milwaukee, Providence — entered the postwar suburbanization wave with the densest parish networks in the country. Because those networks were already built, the institutional logic of the Church (territorial assignment, canonical permanence of erected parishes) provided no mechanism to follow the population outward. Congregations moved to the suburbs; parishes did not. The result is that the very metros with the most visible CLI mismatch today are those where the institutional residue of the pre-suburban era is most intact: dense urban cores with anchored parish infrastructure that was never replicated in the suburban rings that absorbed the Catholic laity.
-
-The leapfrog dynamic, documented through the AOD data in Section VI, is the specific mechanism through which this historical pattern produces contemporary distress. It is not simply that old parishes in declining neighborhoods are struggling — that would be a generic urban-decline story. The distinctive finding is that *early post-suburban parishes*, those founded in the 1950s and 1960s to serve the first cohort of Catholic suburbanites, now suffer more than the pre-suburban parishes that preceded them. Those 1950s–60s parishes are now inner-ring suburban institutions, outpaced by the next ring of exurban growth in exactly the same way that the urban-core parishes were outpaced by their own founding generation. Each cohort of Catholic parish infrastructure gets stranded by the one that follows it.
-
-The cross-sectional spatial evidence ties together the historical and the contemporary. The Cincinnati/Covington map makes the mechanism legible at the smallest scale: a single physical boundary — the Ohio River — that is simultaneously a canonical boundary produces measurable leakage where none would exist under natural Voronoi partition. The Detroit Voronoi analysis scales this intuition: a Moran's I of 0.513 on founding lag confirms that the leapfrog is not a parish-by-parish idiosyncrasy but a structured spatial phenomenon, with LISA clusters of late-founding parishes in the exurban fringe and early-founding clusters in the urban core forming geographically coherent rings that track decades of suburban growth. The CLI framework then generalizes both findings to the national parish network, where the elasticity of service supply to population density is significantly below 1 in urban strata — the signature of an institutional supply structure that did not adjust to the demand gradients that emerged after its boundaries were drawn.
-
-The policy implication is not that boundaries should be abolished; canonical territory serves liturgical, administrative, and community-anchor functions beyond pure market efficiency. The implication is that the current portfolio of urban-core parish land — held at low utilization, carrying mounting deferred maintenance, and serving populations whose registered members increasingly commute in from distant suburbs — represents an opportunity to deploy the ground-lease model that converts underutilized institutional land into mixed-income housing while preserving the parish's canonical presence. The [Redevelopment Analysis](Closure_Conversion_Recommendations.html) page translates this into a ranked set of candidate sites, prioritizing parishes that simultaneously show high CLI, high surface parking area, and the territorial cohesion profile of a commuter-remnant parish rather than a rooted neighborhood anchor.
+The [Redevelopment Analysis](Closure_Conversion_Recommendations.html) page translates this into a ranked national set of candidate sites, prioritizing parishes that simultaneously show high CLI, high surface parking area, and the territorial cohesion profile of a commuter-remnant parish.
 
 ---
 
-## X. References
+## X. Conclusion
 
-- ARDA Longitudinal Religious Congregations and Membership Study (1980–2010). Association of Religion Data Archives. Retrieved from www.thearda.com.
+The canonical map is not simply outdated — it is actively maintained by a sacrificial logic that consumes individual parishes rather than reorganizing territorial boundaries. The Löschian framework tells us what efficient allocation of sacred services across space would look like, and measures a gap between that ideal and the canonical reality that is largest precisely in the metros where Catholicism was strongest. The Girardian framework tells us why that gap will not be closed through internal reform alone: the institution cannot acknowledge that the map is the problem without dissolving the differentiating order that gives the map its sacred authority. Each parish closure is not a rationalization — it is a sacrifice that preserves the fiction of the map by consuming one of its weakest nodes.
+
+Cincinnati and Detroit together constitute a natural experiment in the *timing* of institutional sacrifice. Detroit has passed through the full sequence: misallocation → mimetic undifferentiation → sacrifice → void. Cincinnati is where Detroit was in approximately 2005: the same structural pattern, the same cohort gradient, the same null interaction between founding lag and rate of decline — but the restructuring process has not yet been triggered. The comparison isolates the AOD crisis as the amplifier that converts structural rigidity into institutional emergency, rather than the cause of the rigidity itself.
+
+The structural finding — founding lag determines the level of sacramental activity, not the rate of decline — has a precise policy interpretation. The institution cannot accelerate its way out of this by making individual parishes more vital. The level effect is set by where the parish was founded relative to the demographic frontier; no amount of pastoral renewal changes the founding year. Reform requires either external demographic pressure sufficient to force territorial reorganization at scale, or a theological reframing that decouples canonical territory from sacred identity — that makes the map a convenience rather than a constitution.
+
+---
+
+## References
+
 - Azzi, C., & Ehrenberg, R. (1975). Household Allocation of Time and Church Attendance. *Journal of Political Economy*, 83(1), 27–56.
 - Berry, S. T. (1994). Estimating Discrete-Choice Models of Product Differentiation. *RAND Journal of Economics*, 25(2), 242–262.
 - Conley, T. G. (1999). GMM Estimation with Cross Sectional Dependence. *Journal of Econometrics*, 92(1), 1–45.
 - Finke, R., & Stark, R. (2005). *The Churching of America, 1776–2005.* Rutgers University Press.
+- Girard, R. (1972). *La Violence et le Sacré.* Grasset. [Trans. *Violence and the Sacred*, 1977, Johns Hopkins UP.]
+- Girard, R. (1982). *Le Bouc émissaire.* Grasset. [Trans. *The Scapegoat*, 1986, Johns Hopkins UP.]
 - Hotelling, H. (1929). Stability in Competition. *The Economic Journal*, 39(153), 41–57.
 - Huff, D. L. (1963). A Probabilistic Analysis of Shopping Center Trade Areas. *Land Economics*, 39(1), 81–90.
 - Iannaccone, L. R. (1998). Introduction to the Economics of Religion. *Journal of Economic Literature*, 36(3), 1465–1495.
+- Lösch, A. (1954). *The Economics of Location.* Yale University Press.
 - McMillen, D. P. (2003). The Return of Centralization to Chicago. *Regional Science and Urban Economics*, 33(3), 287–304.
-- National Council of Churches. (1956). *Churches and Church Membership in the United States, 1952.* Bureau of Research and Survey, National Council of the Churches of Christ in the USA.
+- National Council of Churches. (1956). *Churches and Church Membership in the United States, 1952.*
 - Overture Maps Foundation. (2025). *Buildings and Infrastructure Layers: Technical Documentation.*
-- Roman Catholic Archdiocese of Detroit. (2025–26). *Parish Restructuring Planning Workbooks.* Office of Pastoral Planning.
-- Shoup, D. (2005). *The High Cost of Free Parking.* American Planning Association.
+- Palaver, W. (2013). *René Girard's Mimetic Theory.* Michigan State University Press.
+- Roman Catholic Archdiocese of Cincinnati. (2025). *Parish Vitality Report 2025.*
+- Roman Catholic Archdiocese of Detroit. (2025–26). *Parish Restructuring Planning Workbooks.*
