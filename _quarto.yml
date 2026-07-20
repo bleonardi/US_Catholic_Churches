@@ -5,6 +5,7 @@ project:
     - index.qmd
     - Canonical_Rigidity_Research_Paper.qmd
     - Closure_Conversion_Recommendations.qmd
+    - Basilica_Trajectory_Model.qmd
 
 website:
   title: "Canonical Rigidity"
@@ -16,6 +17,8 @@ website:
         text: Spatial Analysis
       - href: Closure_Conversion_Recommendations.qmd
         text: Redevelopment
+      - href: Basilica_Trajectory_Model.qmd
+        text: Basilica-ble
 
 format:
   html:

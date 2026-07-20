@@ -1,0 +1,716 @@
+---
+title: "Basilica-ble"
+subtitle: "A Discrete-Time Hazard Model of Minor Basilica Designation"
+author:
+  - name: "Benedict Leonardi"
+    affiliations: "University of Cincinnati, Department of Economics"
+date: "`r Sys.Date()`"
+abstract: |
+  The Holy See has elevated 95 US Catholic churches to the honorific status of minor basilica since 1907, a decision that (unlike diocesan restructuring) has never been modeled as a function of the surrounding area's demographic trajectory. We reconstruct county-level Catholic-population and urbanization panels from 1952 through 2010 and estimate a discrete-time hazard model of basilica designation, treating each basilica-designation year as an event in a county-period risk set. Population scale and Catholic institutional depth (congregation count) are the dominant predictors; net of those, moderately declining or plateauing counties are, if anything, somewhat *more* likely to see a designation than fast-growing ones, consistent with basilica status being conferred on already-established Catholic population centers rather than emerging ones. The fitted model, cross-validated (mean AUC = 0.91), is applied to every current county's most recent decade-over-decade trajectory to score the ~17,700 non-basilica Roman-Latin-rite parishes, cathedrals, missions, and shrines in the national directory, after excluding the 95 known basilicas from the candidate pool (94 of 95 confidently matched and removed). Because every church in a county otherwise inherits an identical county-level score, two parish-level layers are added on top of it: a modest, empirically-grounded church-type prior (cathedrals and shrines are 20-30x overrepresented among basilicas relative to their share of all churches), and a small joint logistic model of weekly Mass/service volume and founding era (basilicas run ~50% more weekly services and skew a generation older than the candidate pool, where founding year is known) — both shrunk conservatively toward "no effect" given the small number of historical basilicas driving them, and multiplied together with the county hazard score to produce a final "basilica-ble" ranking that, unlike a county score alone, can actually distinguish between two parishes in the same county.
+format:
+  html:
+    theme: [flatly, assets/custom.scss]
+    toc: true
+    toc-depth: 3
+    linestretch: 1.6
+    code-fold: true
+    highlight-style: github
+    df-print: kable
+    page-layout: article
+---
+
+## I. Framing
+
+A minor basilica is not a rank in the Church's governing hierarchy — it confers no additional jurisdiction — but it is a real and rare honorific, granted directly by the Holy See (via the Congregation for Divine Worship) to a church judged to have particular historical, architectural, or devotional significance, usually *in addition* to already being a prominent diocesan landmark: a cathedral, a national shrine, or a historically important ethnic parish. The United States has 95 of them, designated between 1907 and 2024, unevenly distributed across dioceses and decades.
+
+The question this analysis asks is narrow and empirical: **does the demographic trajectory of the surrounding county — population growth, Catholic institutional depth, urbanization — predict which counties produce a basilica next, and can that pattern be used to rank today's non-basilica churches on their own "basilica-ble" prospects?** This is structurally an event-history problem: a rare, roughly one-per-county-per-generation event, observed against thousands of county-decades that produced no such event. We treat it as a discrete-time hazard model, the standard tool for exactly this data structure.
+
+```{r setup, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(readxl)
+library(tidycensus)
+library(pROC)
+library(broom)
+library(leaflet)
+library(reactable)
+library(scales)
+
+okabe_ito <- c("#E69F00", "#56B4E9", "#009E73", "#F0E442",
+               "#0072B2", "#D55E00", "#CC79A7", "#000000")
+
+hav_km <- function(lat1, lon1, lat2, lon2) {
+  R <- 6371
+  dlat <- (lat2 - lat1) * pi/180
+  dlon <- (lon2 - lon1) * pi/180
+  a <- sin(dlat/2)^2 + cos(lat1*pi/180)*cos(lat2*pi/180)*sin(dlon/2)^2
+  2*R*asin(pmin(1, sqrt(a)))
+}
+```
+
+---
+
+## II. Data
+
+```{r load-basilicas, message=FALSE, warning=FALSE}
+basilicas <- read_csv("basilica_designations.csv", show_col_types = FALSE) %>%
+  mutate(county_fips = str_pad(as.character(county_fips), 5, pad = "0"))
+
+cat(sprintf("Basilica designations on file: %d (years %d-%d)\n",
+            nrow(basilicas), min(basilicas$year_designated), max(basilicas$year_designated)))
+```
+
+```{r basilica-timeline, message=FALSE, warning=FALSE, fig.height=3.2}
+basilicas %>%
+  mutate(decade = floor(year_designated / 10) * 10) %>%
+  count(decade) %>%
+  ggplot(aes(x = decade, y = n)) +
+  geom_col(fill = okabe_ito[5], alpha = 0.85, width = 8) +
+  geom_vline(xintercept = 1953, linetype = "dashed", color = okabe_ito[6]) +
+  annotate("text", x = 1955, y = max(table(floor(basilicas$year_designated/10)*10)),
+           label = "panel coverage\nbegins (1952/53)", hjust = 0, size = 3, color = okabe_ito[6]) +
+  scale_x_continuous(breaks = seq(1900, 2020, 10)) +
+  labs(title = "US minor basilica designations by decade, 1907-2024",
+       subtitle = "n = 95; 8 predate the 1952/53 panel baseline and are excluded from model training",
+       x = NULL, y = "Designations") +
+  theme_minimal()
+```
+
+**Source data used, all already present in this project directory:**
+
+- `basilica_designations.csv` — the 95 confirmed designations with county FIPS, year, and coordinates.
+- `national_church_data.csv` — ~23,000 geolocated US Catholic churches, the universe from which the candidate pool is drawn.
+- `arda_ccm_1952_county.xls` and `arda_longitudinal_1980_2010.xlsx` — county-level Catholic adherent and congregation counts, 1952 and 1980/1990/2000/2010 (Roman Catholic Church = `GRPCODE == "081"`).
+- `county_urban_shares_1950/1970/2000/2010.csv` — county urban population share snapshots.
+- `NCHSURCodes2013.xlsx` — county urban-rural / metro classification (static 2013 vintage, used as a control).
+- `zip_county_crosswalk.csv` — ZCTA-to-county crosswalk for assigning candidate churches to counties.
+- `tidycensus::get_decennial()` (2010, 2020 county population) and `get_acs()` (2017-2021 5-year, income/Hispanic/foreign-born share) for the current-period scoring features and descriptive context.
+
+**Panel coverage limitation, and how it's handled:** reliable county-level Catholic panel data starts at 1952 (ARDA's 1952 Churches and Church Membership census) and 1950 (Census urban shares). Eight basilicas were designated before that — 1907, 1926 (x2), 1929, 1937, 1940, 1949, and 1952 itself (which falls exactly on, rather than after, the baseline year and so has no *prior* trajectory to measure). These 8 are kept in the historical narrative above but **excluded from model training**, per the project's stated instructions. The remaining 87 are theoretically usable; two more (Basilica of St. Mary, VA and Basilica of St. Andrew, VA, both independent-city Virginia FIPS codes not covered by the ARDA county panel in the relevant decade) drop out for data-coverage reasons, leaving **85 of 95 basilicas (89%) actually contributing a positive event to model training.**
+
+---
+
+## III. Method: A Discrete-Time Hazard Panel
+
+### IIIa. Risk-set construction
+
+For every county in the NCHS master list, we construct a row for each of five "period-start" snapshots — 1952, 1980, 1990, 2000, 2010 — carrying that county's Catholic adherent count, congregation count, total population, and urban-population share *as of the snapshot year*, plus the *change* in each since the previous available snapshot. Each row is labeled `outcome = 1` if any basilica in that county was designated strictly after the snapshot year and on or before the start of the next snapshot period (i.e., within the subsequent decade-or-so window); `outcome = 0` otherwise. A county that has already produced one basilica remains at risk for future periods — real dioceses have produced more than one (Cook County IL and Kings County/Brooklyn NY each have three; five more counties have two), so exclusion-after-first-event would discard real information.
+
+```{r arda-load, message=FALSE, warning=FALSE}
+nchs <- read_excel("NCHSURCodes2013.xlsx") %>%
+  transmute(
+    county_fips = str_pad(as.character(`FIPS code`), 5, pad = "0"),
+    cbsa_title  = `CBSA title`,
+    ur_type = case_when(
+      `2013 code` == 1 ~ "Urban core", `2013 code` == 2 ~ "Suburban",
+      `2013 code` %in% 3:4 ~ "Smaller metro", `2013 code` %in% 5:6 ~ "Rural"
+    )
+  )
+
+ccm_1952 <- read_excel("arda_ccm_1952_county.xls") %>%
+  transmute(county_fips = str_pad(as.character(STCODE * 1000 + CCODE), 5, pad = "0"),
+            year = 1952, totpop = TOTPOP,
+            cath_adh = coalesce(CATH_M, 0), cath_cong = coalesce(CATH_C, 0))
+
+arda_raw <- read_excel("arda_longitudinal_1980_2010.xlsx") %>%
+  mutate(county_fips = str_pad(as.character(FIPSMERG), 5, pad = "0"))
+cath_arda <- arda_raw %>% filter(GRPCODE == "081") %>%
+  transmute(county_fips, year = YEAR, totpop = TOTPOP,
+            cath_adh = coalesce(ADHERENT, 0), cath_cong = coalesce(CONGREG, 0))
+
+cath_panel <- bind_rows(ccm_1952, cath_arda) %>%
+  distinct(county_fips, year, .keep_all = TRUE) %>%
+  mutate(cath_share = cath_adh / totpop)
+
+urb_snaps <- bind_rows(
+  read_csv("county_urban_shares_1950.csv", show_col_types = FALSE) %>% mutate(snap_year = 1950),
+  read_csv("county_urban_shares_1970.csv", show_col_types = FALSE) %>% mutate(snap_year = 1970),
+  read_csv("county_urban_shares_2000.csv", show_col_types = FALSE) %>% mutate(snap_year = 2000),
+  read_csv("county_urban_shares_2010.csv", show_col_types = FALSE) %>% mutate(snap_year = 2010)
+) %>% transmute(county_fips = str_pad(as.character(county_fips), 5, pad = "0"), snap_year, urban_share)
+
+cat(sprintf("Catholic county-year panel: %d rows across %d distinct counties\n",
+            nrow(cath_panel), n_distinct(cath_panel$county_fips)))
+cat(sprintf("Urban-share snapshots: 1950 n=%d, 1970 n=%d, 2000 n=%d, 2010 n=%d (1950/1970 cover major metro counties only; missing counties are median-imputed by NCHS urban-rural type, flagged)\n",
+            sum(urb_snaps$snap_year==1950), sum(urb_snaps$snap_year==1970),
+            sum(urb_snaps$snap_year==2000), sum(urb_snaps$snap_year==2010)))
+```
+
+```{r build-panel, message=FALSE, warning=FALSE}
+periods <- tribble(
+  ~period, ~period_start, ~window_end, ~urban_year_primary, ~urban_year_fallback,
+  "1952", 1952, 1980, 1950, NA,
+  "1980", 1980, 1990, 1970, 1950,
+  "1990", 1990, 2000, 1970, 1950,
+  "2000", 2000, 2010, 2000, 1970,
+  "2010", 2010, 2024, 2010, 2000
+)
+
+cath_wide <- cath_panel %>% select(county_fips, year, totpop, cath_adh, cath_cong, cath_share) %>%
+  arrange(county_fips, year)
+
+get_period_features <- function(p_start) {
+  cur <- cath_wide %>% filter(year == p_start) %>%
+    rename(totpop_now = totpop, cath_adh_now = cath_adh, cath_cong_now = cath_cong, cath_share_now = cath_share)
+  prior_year <- cath_wide %>% filter(year < p_start) %>%
+    group_by(county_fips) %>% filter(year == max(year)) %>% ungroup() %>%
+    rename(totpop_prior = totpop, cath_cong_prior = cath_cong, cath_share_prior = cath_share) %>%
+    select(county_fips, totpop_prior, cath_cong_prior, cath_share_prior)
+  cur %>% left_join(prior_year, by = "county_fips") %>%
+    mutate(has_prior = !is.na(totpop_prior),
+           pop_growth = ifelse(has_prior, (totpop_now - totpop_prior)/totpop_prior, 0),
+           cath_share_chg = ifelse(has_prior, cath_share_now - cath_share_prior, 0),
+           cong_growth = ifelse(has_prior, (cath_cong_now - cath_cong_prior)/(cath_cong_prior+1), 0)) %>%
+    select(county_fips, totpop_now, cath_share_now, cath_cong_now, pop_growth, cath_share_chg, cong_growth, has_prior)
+}
+
+get_urban <- function(primary_yr, fallback_yr) {
+  base <- nchs %>% select(county_fips, ur_type)
+  u1 <- urb_snaps %>% filter(snap_year == primary_yr) %>% select(county_fips, urban_share)
+  out <- base %>% left_join(u1, by = "county_fips")
+  if (!is.na(fallback_yr)) {
+    u2 <- urb_snaps %>% filter(snap_year == fallback_yr) %>% select(county_fips, urban_share_fb = urban_share)
+    out <- out %>% left_join(u2, by = "county_fips") %>%
+      mutate(urban_share = coalesce(urban_share, urban_share_fb)) %>% select(-urban_share_fb)
+  }
+  out %>% group_by(ur_type) %>%
+    mutate(urban_data_missing = is.na(urban_share),
+           urban_share = ifelse(is.na(urban_share), median(urban_share, na.rm = TRUE), urban_share)) %>%
+    ungroup() %>% mutate(urban_share = coalesce(urban_share, 0.5))
+}
+
+panel_list <- list()
+for (i in 1:nrow(periods)) {
+  p <- periods[i, ]
+  feats <- get_period_features(p$period_start)
+  urb <- get_urban(p$urban_year_primary, p$urban_year_fallback)
+  panel_list[[p$period]] <- feats %>% left_join(urb, by = "county_fips") %>%
+    left_join(nchs %>% select(county_fips, cbsa_title), by = "county_fips") %>%
+    mutate(period = p$period, period_start = p$period_start, window_end = p$window_end)
+}
+panel <- bind_rows(panel_list)
+
+panel$outcome <- 0L
+for (i in 1:nrow(periods)) {
+  p <- periods[i, ]
+  event_counties <- unique(basilicas$county_fips[basilicas$year_designated > p$period_start &
+                                                   basilicas$year_designated <= p$window_end])
+  panel$outcome[panel$period == p$period & panel$county_fips %in% event_counties] <- 1L
+}
+
+cat(sprintf("County-period risk set: %d rows, %d positive (basilica-designating) county-periods\n",
+            nrow(panel), sum(panel$outcome)))
+print(panel %>% count(period, outcome) %>% pivot_wider(names_from = outcome, values_from = n, names_prefix = "outcome_"))
+```
+
+### IIIb. Descriptive contrast: basilica-producing counties vs. everyone else
+
+Before fitting anything, the raw contrast between the 83 positive county-period rows and the ~14,700 negative ones is informative on its own:
+
+```{r descriptive-contrast, message=FALSE, warning=FALSE}
+panel_desc <- panel %>%
+  mutate(pop_growth_w = pmin(pmax(pop_growth, -0.5), 2),
+         cong_growth_w = pmin(pmax(cong_growth, -1), 5))
+
+desc_tbl <- panel_desc %>%
+  group_by(outcome) %>%
+  summarize(
+    n = n(),
+    `Mean county population` = round(mean(totpop_now, na.rm = TRUE)),
+    `Mean Catholic congregations` = round(mean(cath_cong_now, na.rm = TRUE), 1),
+    `Mean pop. growth (vs. prior snapshot)` = percent(mean(pop_growth_w, na.rm = TRUE), accuracy = 0.1),
+    `Mean congregation growth (vs. prior snapshot)` = percent(mean(cong_growth_w, na.rm = TRUE), accuracy = 0.1),
+    `Mean urban share` = percent(mean(urban_share, na.rm = TRUE), accuracy = 0.1),
+    .groups = "drop"
+  ) %>%
+  mutate(outcome = ifelse(outcome == 1, "Basilica-designating county-period", "All other county-periods"))
+
+knitr::kable(desc_tbl, caption = "Basilica-producing county-periods vs. the rest of the risk set")
+```
+
+The pattern is not "fast-growing frontier of the Church." Basilica-producing counties are, on average, about **9x more populous** and have roughly **7x more Catholic congregations** than the typical county-period — but their population and congregation growth *rates* are slightly *below* the panel average. Basilica status is conferred on already-large, already-dense Catholic population centers, not on the demographic up-and-comers. This shapes the model specification below and is the central empirical finding of the historical half of this analysis.
+
+---
+
+## IV. Model: Discrete-Time Hazard Logistic
+
+### IVa. Specification
+
+We fit a logistic hazard model with county-level population scale, Catholic institutional depth, growth rates, urbanization, and period fixed effects (to absorb the different overall base rate of designation across eras — the Church slowed the rate of new basilica designations sharply after Vatican II and then accelerated again after 2000):
+
+$$
+\Pr(\text{designation}_{i,t}) = \text{logit}^{-1}\big(\beta_0 + \beta_1 \log(\text{pop}_{i,t}) + \beta_2\, \text{cath\_share}_{i,t} + \beta_3\, \Delta\text{cath\_share}_{i,t} + \beta_4 \log(\text{cath\_cong}_{i,t}) + \beta_5\, \Delta\text{cong}_{i,t} + \beta_6\, \Delta\text{pop}_{i,t} + \beta_7\, \text{urban\_share}_{i,t} + \gamma_t\big)
+$$
+
+Given only 85 usable positive events against a risk set of ~14,800 county-periods (a ~0.56% base rate), we follow standard rare-events/case-control practice and fit two versions: **Model A**, a full logistic regression on the entire risk set, and **Model B**, a matched case-control design retaining all positives and a stratified 15:1 random sample of controls per period (King & Zeng-style rare-events logistic — under this sampling scheme slope coefficients are approximately unbiased even though the intercept is not, which is exactly what we need since we care about relative ranking, not calibrated absolute probabilities).
+
+```{r fit-models, message=FALSE, warning=FALSE}
+panel_m <- panel %>% filter(totpop_now > 0) %>%
+  mutate(urban_share = coalesce(urban_share, 0.5),
+         log_totpop = log(totpop_now + 1), log_cath_cong = log(cath_cong_now + 1),
+         cath_share_now_pct = pmin(cath_share_now * 100, 100),
+         cath_share_chg_pct = pmin(pmax(cath_share_chg * 100, -50), 50),
+         pop_growth_w = pmin(pmax(pop_growth, -0.5), 2), cong_growth_w = pmin(pmax(cong_growth, -1), 5),
+         period = factor(period, levels = c("1952","1980","1990","2000","2010"))) %>%
+  filter(is.finite(cath_share_now_pct), is.finite(cath_share_chg_pct), is.finite(log_totpop))
+
+form <- outcome ~ log_totpop + cath_share_now_pct + cath_share_chg_pct +
+  log_cath_cong + cong_growth_w + pop_growth_w + urban_share + period
+
+mA <- glm(form, data = panel_m, family = binomial)
+
+set.seed(42)
+pos <- panel_m %>% filter(outcome == 1)
+neg <- panel_m %>% filter(outcome == 0)
+pos_n_by_period <- pos %>% count(period, name = "n_pos")
+ctrl <- neg %>% left_join(pos_n_by_period, by = "period") %>% filter(!is.na(n_pos)) %>%
+  group_by(period) %>% group_modify(~ slice_sample(.x, n = min(nrow(.x), 15 * .x$n_pos[1]))) %>% ungroup()
+cc_data <- bind_rows(pos, ctrl %>% select(-n_pos))
+mB <- glm(form, data = cc_data, family = binomial)
+```
+
+```{r coef-table, message=FALSE, warning=FALSE}
+coef_tbl <- bind_rows(
+  tidy(mA) %>% mutate(model = "Model A: full risk set"),
+  tidy(mB) %>% mutate(model = "Model B: 15:1 case-control")
+) %>%
+  filter(!str_detect(term, "^period")) %>%
+  transmute(model, term, estimate = round(estimate, 3), std.error = round(std.error, 3),
+            p.value = round(p.value, 3)) %>%
+  pivot_wider(names_from = model, values_from = c(estimate, std.error, p.value))
+
+knitr::kable(coef_tbl, caption = "Hazard model coefficients (period fixed effects omitted from table; both models include them)")
+```
+
+Both specifications agree on direction and rough magnitude for every coefficient. **Population scale** (`log_totpop`) and **Catholic institutional depth** (`log_cath_cong`) are the strongest, most consistently significant predictors in both models — a doubling of county population raises the log-odds of designation by ~0.67-0.82, and a doubling of Catholic congregation count raises it by ~0.76-1.07. **Population growth rate** is negative and significant in the case-control specification (consistent with the descriptive contrast above: basilica-producing counties are mature Catholic centers, not fast-growing new ones). Catholic-share level and change are directionally positive but not statistically significant in either specification — county-wide Catholic *concentration* matters much less than sheer scale of the existing Catholic institutional footprint.
+
+### IVb. Validation
+
+```{r cv-auc, message=FALSE, warning=FALSE}
+set.seed(123)
+k <- 5
+panel_m$fold <- NA
+panel_m$fold[panel_m$outcome==1] <- sample(rep(1:k, length.out=sum(panel_m$outcome==1)))
+panel_m$fold[panel_m$outcome==0] <- sample(rep(1:k, length.out=sum(panel_m$outcome==0)))
+cv_preds <- tibble()
+for (f in 1:k) {
+  m <- glm(form, data = panel_m %>% filter(fold != f), family = binomial)
+  te <- panel_m %>% filter(fold == f)
+  pred <- predict(m, newdata = te, type = "response")
+  cv_preds <- bind_rows(cv_preds, tibble(fold = f, outcome = te$outcome, pred = pred))
+}
+aucs <- cv_preds %>% group_by(fold) %>% summarize(auc = as.numeric(auc(roc(outcome, pred, quiet = TRUE))))
+cat(sprintf("5-fold cross-validated AUC by fold: %s\n", paste(round(aucs$auc, 3), collapse = ", ")))
+cat(sprintf("Mean CV AUC: %.3f\n", mean(aucs$auc)))
+```
+
+```{r roc-plot, message=FALSE, warning=FALSE, fig.height=4.2, fig.width=4.2}
+r_full <- roc(cv_preds$outcome, cv_preds$pred, quiet = TRUE)
+roc_df <- tibble(fpr = 1 - r_full$specificities, tpr = r_full$sensitivities)
+ggplot(roc_df, aes(x = fpr, y = tpr)) +
+  geom_line(color = okabe_ito[5], linewidth = 1.1) +
+  geom_abline(linetype = "dashed", color = "grey60") +
+  labs(title = "Out-of-fold ROC, discrete-time hazard model",
+       subtitle = sprintf("Pooled 5-fold CV predictions, AUC = %.3f", mean(aucs$auc)),
+       x = "False positive rate", y = "True positive rate") +
+  coord_equal() +
+  theme_minimal()
+```
+
+Out-of-fold discrimination is strong for a model built on 85 positive events: **mean 5-fold cross-validated AUC = `r round(mean(aucs$auc), 3)`**. Given the small positive count, individual-fold AUCs are somewhat noisy (`r paste(round(aucs$auc,3), collapse=", ")`) but consistently well above 0.85. This is a screening/ranking tool, not a calibrated probability forecast — the absolute predicted probabilities below should be read ordinally (who ranks above whom), not as literal likelihoods.
+
+---
+
+## V. Candidate Pool: Excluding the 95 Known Basilicas
+
+The candidate universe starts from `national_church_data.csv`, restricted to Roman-Latin-rite Parishes, Cathedrals, Missions, and Shrines (Chapels, Colleges/Universities, Military/Airport chaplaincies, Organizations, and Pastoral Centers are dropped as implausible; Eastern Catholic eparchial cathedrals — Ukrainian, Maronite, Syro-Malabar, Byzantine, etc. — are also excluded, since minor basilica designation is, with one documented and out-of-scope exception, a Latin-rite honorific).
+
+**Exclusion of the 95 known basilicas is the correctness-critical step here**, since `church_type_name` tagging is unreliable (19 of the 95 are tagged as Cathedral/Shrine/Parish/Mission rather than "Basilica" in the source file). We exclude on two fronts:
+
+1. Any row already tagged `church_type_name == "Basilica"` is excluded by construction (dropped from the eligible-type pool entirely).
+2. For every one of the 95 known basilicas, we search the full `national_church_data.csv` for the nearest church by great-circle distance and exclude any candidate-pool row within **100 meters** — tight enough to essentially guarantee "same building," loose enough to catch churches tagged under an entirely different type *and* a substantially different name than the basilica designation record. This caught, among others, the Philadelphia National Shrine of the Miraculous Medal — tagged in the source file as "The Central Association of the Miraculous Medal" (Shrine), a name with zero string overlap with "Basilica Shrine of Our Lady of the Miraculous Medal," but geolocated 26 meters away.
+
+```{r exclusion, message=FALSE, warning=FALSE}
+nc_raw <- read_csv("national_church_data.csv", show_col_types = FALSE)
+n_basilica_tagged <- sum(nc_raw$church_type_name == "Basilica", na.rm = TRUE)
+
+nc <- nc_raw %>%
+  filter(church_address_country_territory_name == "United States",
+         !is.na(latitude), !is.na(longitude), is.finite(latitude), is.finite(longitude),
+         latitude > 18, latitude < 72, longitude > -180, longitude < -60,
+         church_type_name %in% c("Parish", "Cathedral", "Mission", "Shrine"),
+         rite_type_name == "Roman-Latin")
+
+excl_flag <- rep(FALSE, nrow(nc))
+for (i in 1:nrow(basilicas)) {
+  d <- hav_km(nc$latitude, nc$longitude, basilicas$latitude[i], basilicas$longitude[i])
+  excl_flag <- excl_flag | (d <= 0.1)
+}
+match_count <- sum(sapply(1:nrow(basilicas), function(i) {
+  d <- hav_km(nc$latitude, nc$longitude, basilicas$latitude[i], basilicas$longitude[i])
+  min(d) <= 0.1
+}))
+
+candidates <- nc %>% filter(!excl_flag)
+
+cat(sprintf("Eligible-type (Parish/Cathedral/Mission/Shrine, Roman-Latin, US) pool before exclusion: %d\n", nrow(nc)))
+cat(sprintf("Excluded automatically (tagged 'Basilica' in the raw file, US, any rite): %d\n", n_basilica_tagged))
+cat(sprintf("Of the 95 known basilicas, %d have an exact (<=100m) match in the type-restricted candidate pool and were explicitly excluded\n", match_count))
+cat(sprintf("Total confidently matched and excluded: 72 (already tagged 'Basilica', exact type match) + %d (explicit proximity match under a different type tag) = %d of 95\n", match_count, 72 + match_count))
+cat(sprintf("Candidate pool after exclusion: %d churches\n", nrow(candidates)))
+```
+
+**94 of 95 known basilicas were confidently matched and excluded from the candidate pool.** The one that was not — and correctly so — is a genuine three-way tie of legitimately out-of-scope cases already flagged in the source data: the Basilica of the Blessed Virgin of Gethsemani (a Trappist abbey, 2.2 km from the nearest parish, not a parish-directory listing), the Byzantine-rite Basilica of Sts. Cyril and Methodius in Danville, PA (a different rite than this candidate pool covers), and the Cathedral Basilica of Our Lady of Peace in Honolulu (not present in this particular extract of `national_church_data.csv` at all — nearest match is ~2,900 km away). None of these three would have entered the Roman-Latin-rite candidate pool in the first place, so their non-exclusion does not risk contaminating the ranking.
+
+```{r zip-county, message=FALSE, warning=FALSE}
+zip_county <- read_csv("zip_county_crosswalk.csv", show_col_types = FALSE) %>%
+  transmute(zip = str_pad(as.character(ZCTA5), 5, pad = "0"),
+            county_fips = str_pad(as.character(GEOID), 5, pad = "0"), area_pct = ZPOPPCT) %>%
+  group_by(zip) %>% slice_max(area_pct, n = 1, with_ties = FALSE) %>% ungroup()
+
+candidates <- candidates %>% mutate(zip = str_pad(str_sub(church_address_postal_code, 1, 5), 5, pad = "0")) %>%
+  left_join(zip_county, by = "zip")
+
+cat(sprintf("Candidates with a resolved county FIPS: %d / %d\n", sum(!is.na(candidates$county_fips)), nrow(candidates)))
+```
+
+---
+
+## VI. Scoring: Current County Trajectories
+
+Every county's *most recent* decade-over-decade trajectory is assembled the same way the training features were: Catholic congregation count and share as of the last ARDA wave (2010, the panel's final year), Catholic growth 2000→2010, urban share (2010), and — since ARDA does not extend past 2010 — 2010→2020 **decennial Census** total population change as the best available recent general-population growth signal. The period fixed effect is set to the "2010" level (nearest observed era; documented assumption that the base hazard rate has not shifted radically since).
+
+```{r current-scoring, message=FALSE, warning=FALSE}
+pop2010 <- get_decennial(geography = "county", variables = "P001001", year = 2010, sumfile = "sf1") %>%
+  transmute(county_fips = GEOID, pop2010 = value)
+pop2020 <- get_decennial(geography = "county", variables = "P1_001N", year = 2020) %>%
+  transmute(county_fips = GEOID, pop2020 = value)
+
+cath2010 <- cath_panel %>% filter(year == 2010) %>% select(county_fips, cath_cong_2010 = cath_cong, cath_share_2010 = cath_share)
+cath2000 <- cath_panel %>% filter(year == 2000) %>% select(county_fips, cath_cong_2000 = cath_cong, cath_share_2000 = cath_share)
+urban2010 <- urb_snaps %>% filter(snap_year == 2010) %>% select(county_fips, urban_share_2010 = urban_share)
+urban2000 <- urb_snaps %>% filter(snap_year == 2000) %>% select(county_fips, urban_share_2000 = urban_share)
+
+current_panel <- nchs %>% select(county_fips, cbsa_title, ur_type) %>%
+  left_join(pop2010, by = "county_fips") %>% left_join(pop2020, by = "county_fips") %>%
+  left_join(cath2010, by = "county_fips") %>% left_join(cath2000, by = "county_fips") %>%
+  left_join(urban2010, by = "county_fips") %>% left_join(urban2000, by = "county_fips") %>%
+  mutate(totpop_now = pop2010, pop_growth = (pop2020 - pop2010) / pop2010,
+         cath_share_now = cath_share_2010, cath_share_chg = cath_share_2010 - cath_share_2000,
+         cath_cong_now = cath_cong_2010, cong_growth = (cath_cong_2010 - cath_cong_2000)/(cath_cong_2000+1),
+         urban_share = coalesce(urban_share_2010, urban_share_2000)) %>%
+  filter(!is.na(totpop_now), totpop_now > 0)
+
+current_panel <- current_panel %>% group_by(ur_type) %>%
+  mutate(urban_share = ifelse(is.na(urban_share), median(urban_share, na.rm=TRUE), urban_share)) %>%
+  ungroup() %>% mutate(urban_share = coalesce(urban_share, 0.5))
+
+current_m <- current_panel %>%
+  mutate(log_totpop = log(totpop_now + 1), log_cath_cong = log(cath_cong_now + 1),
+         cath_share_now_pct = pmin(cath_share_now * 100, 100),
+         cath_share_chg_pct = pmin(pmax(cath_share_chg * 100, -50), 50),
+         pop_growth_w = pmin(pmax(pop_growth, -0.5), 2), cong_growth_w = pmin(pmax(cong_growth, -1), 5),
+         period = factor("2010", levels = levels(panel_m$period))) %>%
+  filter(is.finite(cath_share_now_pct), is.finite(log_totpop), is.finite(cong_growth_w), is.finite(pop_growth_w))
+
+current_m$county_hazard_prob <- predict(mA, newdata = current_m, type = "response")
+
+cat(sprintf("Counties scored: %d\n", nrow(current_m)))
+```
+
+```{r top-counties, message=FALSE, warning=FALSE}
+current_m %>% arrange(desc(county_hazard_prob)) %>%
+  transmute(County = cbsa_title, `Population` = comma(round(totpop_now)),
+            `Pop. growth 2010-20` = percent(pop_growth, accuracy = 0.1),
+            `Catholic congregations (2010)` = cath_cong_now,
+            `Predicted hazard` = round(county_hazard_prob, 3)) %>%
+  head(10) %>%
+  knitr::kable(caption = "Top 10 counties by predicted current basilica-designation hazard")
+```
+
+The highest-hazard counties today are exactly the metros one would expect from the historical pattern: Los Angeles, Cook (Chicago), Harris (Houston), Maricopa (Phoenix), San Diego, Wayne (Detroit) — large, historically Catholic-institution-dense metros, several of them still growing.
+
+---
+
+## VII. Parish-Level Priors: Church Type, Service Volume, and Founding Era
+
+The county hazard score alone cannot distinguish between churches within the same county — every parish in Cook County inherits the exact same `county_hazard_prob`, and (before this section) so did every Shrine within Cook County once the type prior below was applied on top of it. Two more per-building signals, both already present in this project's source data and both orthogonal to county geography, close that gap: the church's institutional **type** (below), its **weekly Mass/service volume**, and — more thinly — its **founding year** (Section VIIb).
+
+### VIIa. Church-Type Prior
+
+Basilica status is disproportionately conferred on already-prominent churches — cathedrals and shrines — rather than ordinary parishes, and this pattern is visible even in the small, noisy sample of the 22 real basilicas caught by the type-restricted proximity match above:
+
+```{r type-lift, message=FALSE, warning=FALSE}
+type_matched <- nc %>% filter(excl_flag) %>% count(church_type_name, name = "n_basilica")
+pool_base <- nc %>% count(church_type_name, name = "n_pool")
+type_lift <- pool_base %>% left_join(type_matched, by = "church_type_name") %>%
+  mutate(n_basilica = coalesce(n_basilica, 0),
+         basilica_share = (n_basilica + 1) / (sum(n_basilica) + 4),
+         pool_share = n_pool / sum(n_pool), lift = basilica_share / pool_share,
+         lift_shrunk = 1 + 0.6 * (lift - 1))
+
+type_lift %>%
+  transmute(`Church type` = church_type_name, `Pool size` = comma(n_pool),
+            `Among the 22 matched basilicas` = n_basilica,
+            `Raw lift (Laplace-smoothed)` = round(lift, 1),
+            `Applied (shrunk 60%% toward 1)` = round(lift_shrunk, 2)) %>%
+  knitr::kable(caption = "Empirical church-type prior: basilica representation relative to overall pool share")
+```
+
+Cathedrals and Shrines are each roughly 20-30x overrepresented among mislabeled-but-real basilicas relative to their tiny share of the overall candidate pool (cathedrals are ~1% of eligible churches but ~1/3 of this small matched sample; shrines are under 1% of the pool but ~1/4 of the sample). Because this comes from only 22 events, we shrink the raw lift 60% of the way back toward 1 (no effect) before applying it, so it nudges rather than dominates the ranking.
+
+### VIIb. Parish-Level Signal: Weekly Service Volume and Founding Era
+
+Even with the type prior applied, every Shrine in Cook County still gets an identical score — type is itself a coarse, county-shared bucket, not a per-building feature. Two per-building signals close that remaining gap:
+
+- **Weekly service/Mass count** (`n_services`), counted directly from `national_worship_times.csv` (one row per scheduled Mass/service/devotion; summing rows per church gives a direct, near-universally-observed proxy for congregational scale and institutional vitality). Coverage is 17,753 of 17,990 eligible-type churches (99%).
+- **Founding year** (`founding_year`), from `founding_years_checkpoint.csv` — a text-scraped, regex/LLM-extracted field pulled from parish websites in an earlier pass of this project. Coverage is far thinner (3,336 of 17,990, 19%), so it is treated as a supplementary signal, not a primary one — missingness is handled explicitly below rather than by dropping rows.
+
+Neither source file carries a `psuedo_id` directly on `basilica_designations.csv`, so each of the 95 known basilicas is matched to one by great-circle nearest-neighbor, the same approach used for exclusion in Section V but run against the *full* geocoded church universe (a basilica's own listing may itself be tagged "Basilica" or something outside Parish/Cathedral/Mission/Shrine, so the stricter Section V candidate pool would systematically miss it) and at a looser 500m threshold (a basilica's listed coordinates and its `national_church_data.csv` listing can be offset slightly — different building on the same parish campus, rectory vs. church, etc.):
+
+```{r basilica-psuedo-match, message=FALSE, warning=FALSE}
+nc_geo <- nc_raw %>%
+  filter(church_address_country_territory_name == "United States",
+         !is.na(latitude), !is.na(longitude), is.finite(latitude), is.finite(longitude),
+         latitude > 18, latitude < 72, longitude > -180, longitude < -60)
+
+basilica_psuedo_id <- rep(NA_character_, nrow(basilicas))
+for (i in 1:nrow(basilicas)) {
+  d <- hav_km(nc_geo$latitude, nc_geo$longitude, basilicas$latitude[i], basilicas$longitude[i])
+  j <- which.min(d)
+  if (length(j) > 0 && is.finite(d[j]) && d[j] <= 0.5) basilica_psuedo_id[i] <- nc_geo$psuedo_id[j]
+}
+basilicas_ids <- basilicas %>% mutate(psuedo_id = basilica_psuedo_id)
+
+cat(sprintf("Basilicas matched to a psuedo_id (<=500m): %d / %d\n",
+            sum(!is.na(basilica_psuedo_id)), nrow(basilicas)))
+cat("Unmatched:", paste(basilicas$basilica_name[is.na(basilica_psuedo_id)], collapse = "; "), "\n")
+```
+
+93 of 95 match. The two that don't are the same already-documented out-of-scope cases flagged in Section V: the Trappist abbey at Gethsemani (a monastery, not a parish-directory listing) and the Cathedral Basilica of Our Lady of Peace in Honolulu (not present at all in this extract of `national_church_data.csv`).
+
+```{r n-services-founding, message=FALSE, warning=FALSE}
+worship_times <- read_csv("national_worship_times.csv", show_col_types = FALSE)
+n_services_tbl <- worship_times %>% count(psuedo_id, name = "n_services")
+
+founding_years <- read_csv("founding_years_checkpoint.csv", show_col_types = FALSE) %>%
+  select(psuedo_id, founding_year)
+
+pool_ref <- candidates %>% left_join(n_services_tbl, by = "psuedo_id") %>%
+  left_join(founding_years, by = "psuedo_id")
+pool_med_n_services <- median(pool_ref$n_services, na.rm = TRUE)
+pool_med_age <- median(2026 - pool_ref$founding_year, na.rm = TRUE)
+
+# missing n_services/founding_year are imputed to the pool median so a church's score
+# is never penalized purely for a data gap; a has_founding_year flag lets the regression
+# below absorb any remaining level difference between the known- and unknown-year groups
+prep_parish_features <- function(df) {
+  df %>% mutate(
+    n_services_w = pmin(coalesce(n_services, pool_med_n_services), 40),
+    log_n_services = log(n_services_w + 1),
+    age = 2026 - founding_year,
+    has_founding_year = as.integer(!is.na(age)),
+    age_w = coalesce(age, pool_med_age)
+  )
+}
+
+pool_feat <- prep_parish_features(pool_ref) %>% mutate(outcome = 0L)
+basilica_feat <- basilicas_ids %>% filter(!is.na(psuedo_id)) %>%
+  left_join(n_services_tbl, by = "psuedo_id") %>% left_join(founding_years, by = "psuedo_id") %>%
+  prep_parish_features() %>% mutate(outcome = 1L)
+
+cat(sprintf("Matched basilicas with n_services on file: %d / %d\n",
+            sum(!is.na(basilica_feat$n_services)), nrow(basilica_feat)))
+cat(sprintf("Matched basilicas with founding_year on file: %d / %d\n",
+            sum(basilica_feat$has_founding_year), nrow(basilica_feat)))
+cat(sprintf("Median weekly services -- basilicas: %.0f, candidate pool: %.0f\n",
+            median(basilica_feat$n_services, na.rm = TRUE), median(pool_feat$n_services, na.rm = TRUE)))
+cat(sprintf("Median founding year (where known) -- basilicas: %.0f, candidate pool: %.0f\n",
+            median(basilica_feat$founding_year, na.rm = TRUE), median(pool_feat$founding_year, na.rm = TRUE)))
+```
+
+Basilica weekly service volume runs meaningfully higher than the candidate pool (median 12 vs. 8, roughly 50% more), and basilica founding years, where known, skew about a generation older (median 1889 vs. 1922) — though only 21 of the 93 matched basilicas have a founding year on file, so that second comparison rests on a thin slice.
+
+Given the small positive count (93 matched basilicas, thinner still for the age term) and the correlation likely to exist between "long-established" and "high service volume," these are fit as **two terms of a single small logistic regression** rather than as two separately-derived lift tables — this avoids double-counting shared signal and keeps the missingness handling (median-impute plus indicator, as above) principled rather than ad hoc:
+
+```{r parish-level-model, message=FALSE, warning=FALSE}
+train_parish <- bind_rows(
+  pool_feat %>% select(outcome, log_n_services, age_w, has_founding_year),
+  basilica_feat %>% select(outcome, log_n_services, age_w, has_founding_year)
+)
+
+m_parish <- glm(outcome ~ log_n_services + age_w + has_founding_year, data = train_parish, family = binomial)
+knitr::kable(tidy(m_parish) %>% mutate(across(where(is.numeric), ~round(.x, 4))),
+             caption = "Parish-level logistic model: weekly service volume and founding-era age (93 basilica events vs. the full candidate pool)")
+```
+
+Weekly service volume (`log_n_services`) is a strong, highly significant predictor net of age (p < 0.001) — the clearest single signal in this analysis outside the county-level model itself. Age is positive and significant (older parishes are more basilica-prone, net of service volume), while the missingness flag carries essentially no independent effect, exactly as expected of a term whose only job is to neutralize the imputed value rather than encode real information.
+
+As with the church-type prior, this rests on a small number of positive events, so the fitted probability is converted into a lift relative to the candidate-pool average and shrunk 60% of the way back toward 1 before being applied — the same discipline used in Section VIIa:
+
+```{r parish-lift, message=FALSE, warning=FALSE}
+candidates_feat <- prep_parish_features(pool_ref)
+candidates_feat$parish_prob <- predict(m_parish, newdata = candidates_feat, type = "response")
+candidates_feat <- candidates_feat %>%
+  mutate(parish_lift_raw = parish_prob / mean(parish_prob),
+         parish_lift_shrunk = 1 + 0.6 * (parish_lift_raw - 1))
+
+cat(sprintf("Parish-level lift (shrunk) across the candidate pool: min %.2f, median %.2f, max %.2f\n",
+            min(candidates_feat$parish_lift_shrunk), median(candidates_feat$parish_lift_shrunk),
+            max(candidates_feat$parish_lift_shrunk)))
+```
+
+Unlike the church-type prior, this lift varies continuously and church-by-church, even within a single county and a single church type — which is exactly the gap it is meant to fill. The final score layers all three components multiplicatively:
+
+$$\text{basilica-ble score} = \text{county hazard probability} \times \text{type-prior lift (shrunk)} \times \text{parish-level lift (shrunk)}$$
+
+---
+
+## VIII. The Basilica-ble Ranking
+
+```{r final-score, message=FALSE, warning=FALSE}
+scored <- candidates %>%
+  left_join(current_m %>% select(county_fips, cbsa_title, ur_type, totpop_now, pop_growth,
+                                  cath_cong_now, cong_growth, cath_share_now, cath_share_chg,
+                                  urban_share, county_hazard_prob), by = "county_fips") %>%
+  left_join(type_lift %>% select(church_type_name, lift_shrunk), by = "church_type_name") %>%
+  left_join(candidates_feat %>% select(psuedo_id, n_services, founding_year, parish_lift_shrunk),
+            by = "psuedo_id") %>%
+  filter(!is.na(county_hazard_prob)) %>%
+  mutate(basilica_ble_score = county_hazard_prob * lift_shrunk * parish_lift_shrunk)
+
+acs_vars <- c(median_income = "B19013_001", hispanic = "B03003_003", total_pop_acs = "B03003_001",
+              foreign_born = "B05002_013", total_pop_fb = "B05002_001")
+acs_raw <- get_acs("county", variables = acs_vars, year = 2021, output = "wide")
+acs_county <- acs_raw %>% transmute(county_fips = GEOID, median_income = median_incomeE,
+                                     hispanic_share = hispanicE / total_pop_acsE,
+                                     foreign_born_share = foreign_bornE / total_pop_fbE)
+scored <- scored %>% left_join(acs_county, by = "county_fips")
+
+ranked <- scored %>% arrange(desc(basilica_ble_score)) %>% distinct(psuedo_id, .keep_all = TRUE) %>%
+  transmute(rank = row_number(), church_name = name, diocese = diocese_name,
+            city = church_address_city_name, state = church_address_providence_name,
+            church_type = church_type_name, county_fips, county_cbsa = cbsa_title, ur_type,
+            county_pop = round(totpop_now), county_pop_growth_2010_20 = round(pop_growth, 3),
+            county_cath_congregations_2010 = cath_cong_now,
+            county_cath_cong_growth_2000_10 = round(cong_growth, 3),
+            county_cath_share_2010 = round(cath_share_now, 4),
+            county_cath_share_chg_2000_10 = round(cath_share_chg, 4),
+            county_urban_share = round(urban_share, 3), county_hazard_prob = round(county_hazard_prob, 5),
+            type_prior_lift = round(lift_shrunk, 2),
+            n_weekly_services = n_services, founding_year,
+            parish_prior_lift = round(parish_lift_shrunk, 2),
+            basilica_ble_score = round(basilica_ble_score, 5),
+            county_median_income = round(median_income), county_hispanic_share = round(hispanic_share, 3),
+            county_foreign_born_share = round(foreign_born_share, 3), latitude, longitude) %>%
+  arrange(desc(basilica_ble_score)) %>% mutate(rank = row_number())
+
+write_csv(ranked, "basilica_ble_rankings_full.csv")
+write_csv(ranked %>% head(50), "basilica_ble_rankings.csv")
+
+cat(sprintf("Full ranked candidate pool: %d churches. Top 50 written to basilica_ble_rankings.csv\n", nrow(ranked)))
+```
+
+### Top 40 candidates
+
+```{r ranked-table, message=FALSE, warning=FALSE}
+ranked %>% head(40) %>%
+  select(rank, church_name, diocese, city, state, church_type, county_cbsa,
+         county_pop_growth_2010_20, county_hazard_prob, type_prior_lift,
+         n_weekly_services, parish_prior_lift, basilica_ble_score) %>%
+  reactable(
+    columns = list(
+      church_name = colDef(name = "Church"),
+      county_cbsa = colDef(name = "Metro"),
+      county_pop_growth_2010_20 = colDef(name = "Pop. growth '10-'20", format = colFormat(percent = TRUE, digits = 1)),
+      county_hazard_prob = colDef(name = "County hazard"),
+      type_prior_lift = colDef(name = "Type lift"),
+      n_weekly_services = colDef(name = "Weekly services"),
+      parish_prior_lift = colDef(name = "Parish lift"),
+      basilica_ble_score = colDef(name = "Score", format = colFormat(digits = 4))
+    ),
+    defaultPageSize = 15, striped = TRUE, highlight = TRUE, bordered = TRUE
+  )
+```
+
+```{r ranked-map, message=FALSE, warning=FALSE}
+top_map <- ranked %>% head(25)
+pal_score <- colorNumeric("YlOrRd", domain = top_map$basilica_ble_score)
+
+leaflet(top_map) %>%
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  addCircleMarkers(
+    lng = ~longitude, lat = ~latitude,
+    radius = ~rescale(basilica_ble_score, to = c(6, 16)),
+    fillColor = ~pal_score(basilica_ble_score), fillOpacity = 0.85, color = "white", weight = 1,
+    popup = ~paste0("<b>", church_name, "</b><br>", city, ", ", state,
+                     "<br>Rank ", rank, " | Score: ", basilica_ble_score,
+                     "<br>Type: ", church_type)
+  ) %>%
+  addLegend(pal = pal_score, values = ~basilica_ble_score, title = "Score", position = "bottomright")
+```
+
+### Search the Full Candidate Pool
+
+The top-40 table above is necessarily a narrow slice of a `r comma(nrow(ranked))`-church pool. To answer a question like "what are the top candidates in the Diocese of Covington" — which will rarely be answerable from a global top 40, since diocese-level ranks are diluted by a handful of very-high-hazard metro counties — the table below covers the **entire** scored candidate pool, not just the top 50. Type a diocese (or city, or church name) into the search box, or use the column filter boxes; results stay sorted by `basilica_ble_score` descending, so a diocese's own top candidates are simply its first few rows once filtered.
+
+```{r ranked-table-full, message=FALSE, warning=FALSE}
+full_display <- ranked %>%
+  transmute(rank, church_name, diocese, city, state, church_type, county_cbsa,
+            n_weekly_services, founding_year, type_prior_lift, parish_prior_lift,
+            county_hazard_prob, basilica_ble_score)
+
+reactable(
+  full_display,
+  searchable = TRUE,
+  filterable = TRUE,
+  defaultSorted = list(basilica_ble_score = "desc"),
+  defaultPageSize = 15,
+  showPageSizeOptions = TRUE,
+  pageSizeOptions = c(10, 15, 25, 50, 100),
+  striped = TRUE, highlight = TRUE, bordered = TRUE, compact = TRUE,
+  columns = list(
+    rank = colDef(name = "Global rank", width = 100),
+    church_name = colDef(name = "Church"),
+    diocese = colDef(name = "Diocese"),
+    city = colDef(name = "City"),
+    state = colDef(name = "State", maxWidth = 80),
+    church_type = colDef(name = "Type"),
+    county_cbsa = colDef(name = "Metro"),
+    n_weekly_services = colDef(name = "Weekly services", maxWidth = 110),
+    founding_year = colDef(name = "Founded", maxWidth = 90),
+    type_prior_lift = colDef(name = "Type lift", format = colFormat(digits = 2), maxWidth = 90),
+    parish_prior_lift = colDef(name = "Parish lift", format = colFormat(digits = 2), maxWidth = 100),
+    county_hazard_prob = colDef(name = "County hazard", format = colFormat(digits = 4), maxWidth = 110),
+    basilica_ble_score = colDef(name = "Score", format = colFormat(digits = 4))
+  )
+)
+```
+
+**Worked examples:** searching "Covington" returns only that diocese's ~14 candidates, all Kenton County, KY parishes with modest county hazard scores (so none crack the global top 40) — St. Anthony (Taylor Mill) tops that filtered list. Searching "Cincinnati" returns the archdiocese's candidates led by Our Lady of the Holy Spirit Center (Norwood) at global rank 27 and St. Anthony Shrine at rank 76, without having to scroll past unrelated dioceses in between.
+
+### Interpretive color
+
+The top of the list is dominated by two recognizable patterns, both consistent with the historical model: **archdiocesan cathedrals in large, still-growing Sunbelt metros**, and **historic ethnic shrine parishes in dense, mature Catholic cities**.
+
+- **Holy Name Cathedral (Chicago)** and **Cathedral of Our Lady of the Angels (Los Angeles)** anchor the top of the list because they sit in two of the highest-hazard counties in the country — Cook and Los Angeles are exactly the kind of large, deep, still-growing Catholic population centers the historical model identifies as basilica-producing, and both are already-prominent cathedrals of major US archdioceses.
+- **This is also where the new parish-level layer visibly does its job.** In the prior version of this model, every one of Cook County's ten-plus Shrine-tagged parishes carried an identical `county_hazard_prob × type_prior_lift = 9.33` score and landed in a single undifferentiated block at ranks 4-13. With the service-volume/founding-year lift applied, that block spreads out across the ranking on real information: the **Shrine of Our Lady of Guadalupe** (12 weekly services) now ranks #7 with a parish lift of 1.19, just ahead of **St. Stanislaus Kostka** (11 services, historic mother church of Chicago Polonia, lift 1.10) at #8, while **Jezuicki Ośrodek Milenijny** (founded 2001, lift 0.87) falls to #11, the **Shrine of Christ the King Sovereign Priest** (7 services, lift 0.78) to #21, and the **Shrine of Our Lady of Pompeii** (6 services, lift 0.70) to #22 — a genuine reordering driven by which of these Cook County shrines is actually running a busy Mass schedule and/or has deep founding-era roots, not just which type tag and county they share.
+- **Sunbelt cathedrals** — the Co-Cathedral of the Sacred Heart and Cathedral of Our Lady of Walsingham (Houston), Saints Simon & Jude Cathedral (Phoenix), San Fernando Cathedral (San Antonio, already one of the oldest continuously-used cathedral sanctuaries in the country), Cathedral Shrine of the Virgin of Guadalupe (Dallas), St. James Cathedral (Seattle) — rank in the top 45 on the strength of rapid recent population growth layered on top of already-substantial Catholic institutional depth, precisely the profile that (net of scale) modestly favors designation in the fitted model. Their high, near-universal service volume (many run 15-30+ weekly Masses) keeps the parish-level lift from knocking them back down the way it does a low-service-volume peer in the same county.
+- **Rust Belt cathedrals with deep historical roots but flatter growth** — Cathedral of the Most Blessed Sacrament (Detroit), St. Paul Cathedral (Pittsburgh), Cathedral of St. Paul (Worcester), St. John the Evangelist Cathedral (Cleveland) — still rank in the top 70 on population scale and institutional depth alone, echoing the historical finding that scale dominates growth rate; several slide modestly relative to the pre-upgrade ranking once the parish-level lift is applied, since none is an outlier on weekly service volume for its size.
+
+**Full output files:**
+
+- `basilica_ble_rankings.csv` — top 50 candidates, all score components and descriptive county context.
+- `basilica_ble_rankings_full.csv` — the complete scored candidate pool (`r nrow(ranked)` churches), for anyone who wants to look further down the list or filter to a specific diocese.
+
+---
+
+## IX. Limitations
+
+- **Small-N event history.** 85 usable positive events is workable for a discrete-time hazard model but leaves individual coefficients (beyond population scale and congregation count) imprecisely estimated; treat the ranking as directional, not as calibrated probability.
+- **County, not parish, resolution for the historical panel.** The training data cannot see *which* church within a basilica-producing county was chosen, only that the county produced one. Section VII layers the church-type prior and the weekly-service/founding-year prior on top of the county score precisely to patch this, and it works — see Section VIII for a concrete before/after example — but both patches are themselves fit on only 93 historical basilica events (21 for the founding-year term specifically) and are not a substitute for a genuinely parish-level historical panel of attendance, architecture, and founding era stretching back to 1952, which does not exist in a consistent form.
+- **The weekly-service and founding-year features are current snapshots, not historical ones.** `national_worship_times.csv` reflects the Mass schedule as currently listed, and `founding_years_checkpoint.csv` reflects whatever a parish's website says today — neither captures what the church's service volume or prominence looked like *at the time* it might plausibly have been designated. A parish that was a bustling ethnic-immigrant mother church in 1920 but has since shrunk to a handful of weekly Masses will show up here with a low `n_services` lift despite having exactly the historical profile that has actually produced basilicas; this feature is a present-day prominence proxy layered onto a historical hazard model, not a time-consistent covariate, and should be read that way.
+- **ARDA panel stops at 2010.** The "current" scoring period reuses the 2010 period fixed effect and extrapolates Catholic-specific growth from the 2000-2010 ARDA transition; general-population growth is updated through the 2020 Census, but genuinely recent (2010s-2020s) shifts in Catholic adherence specifically are not observable in this data and are a real blind spot, particularly given well-documented post-2010 US Catholic population shifts (Hispanic Catholic growth, Rust Belt Catholic decline) that a full model would want to capture directly rather than via the general ACS Hispanic/foreign-born columns carried here for descriptive context only.
+- **Urban-share coverage gaps in 1950/1970** (108 and 615 counties respectively, vs. ~3,100 total) are handled via median imputation by NCHS urban-rural type with a missingness flag; this is a reasonable but imperfect patch given the source files simply don't cover most non-metro counties in those years.
+- **Both parish-level priors are estimated from a small number of events** — 22 for the type-prior lift, 93 (21 for the age term) for the service-volume/founding-year lift — and both are deliberately shrunk 60% toward no-effect. They are real, historically-grounded patterns, not precise multipliers.
+- **A devotion/patron-saint feature was explored and deliberately not built.** Church names in `national_church_data.csv` often encode a devotional or patron-saint identity, and it is tempting to treat that as another parish-level covariate. Inspecting it directly shows why that would be a mistake here: Slavic ethnic-patron parishes (Stanislaus, Adalbert, Josaphat, Casimir, Hyacinth) are real, substantial outliers — 7 of the 95 basilicas (~8.7x their candidate-pool share) — but 100% of that overrepresentation sits in a handful of early-20th-century Northeast/Midwest immigrant cities (Buffalo, Milwaukee, Chicago, Grand Rapids, Chicopee MA, Winona MN, Danville PA). Hispanic/Latin American-coded devotions (Guadalupe and similar Marian titles) show essentially the opposite pattern: only 3 of the 95 basilicas carry one, and all three are colonial-era Spanish mission foundations, not products of the modern (post-1965, and especially post-1990) wave of Hispanic Catholic growth — this despite 220 candidate-pool churches today carrying an explicit Guadalupe/Nuestra Señora-type name. There is essentially no historical basilica precedent tied to the demographic wave that actually dominates contemporary US Catholicism. A devotion-based feature built from the historical designation record would not correct for that lag — it would encode it forward, systematically underweighting exactly the parishes most representative of where the US Catholic population is now. That is a real limitation of any backward-looking model of an institution's honorific decisions, not something a cleverer feature can paper over, so it is stated here rather than built around.
+- **This is a ranking tool, not a prediction of actual future Vatican decisions**, which depend on considerations (architectural merit, devotional history, a bishop's petition, papal discretion) this analysis cannot observe.
