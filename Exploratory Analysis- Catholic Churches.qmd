@@ -10,8 +10,9 @@ I scraped a dataset of every Catholic church in the United States. What follows 
 
 ```{r}
 library(tidyverse)
+library(ggiraph)
 
-church_data <- read_csv("national_church_data.csv") %>%
+church_data <- read_csv("national_masstimes_scrape.csv") %>%
   # selects just US churches, and those w valid coords
   filter(church_address_country_territory_name == "United States",
          !(is.na(latitude)))
@@ -39,17 +40,41 @@ worship_freq <- read_csv("national_worship_times.csv") %>%
 church_data <- church_data %>% 
   left_join(worship_freq, join_by(psuedo_id))
 
-ggplot(church_data, aes(x = num_weekend_mass)) +
-  geom_histogram()
+weekend_mass_bins <- church_data %>%
+  filter(!is.na(num_weekend_mass)) %>%
+  count(num_weekend_mass, name = "n_churches") %>%
+  mutate(tooltip = paste0(num_weekend_mass, " weekend Mass(es): ", n_churches, " churches"))
 
-ggplot(church_data, aes(x = num_hrs_conf)) +
-  geom_histogram()
+p_weekend_hist <- ggplot(weekend_mass_bins, aes(x = num_weekend_mass, y = n_churches)) +
+  geom_col_interactive(aes(tooltip = tooltip, data_id = num_weekend_mass))
 
-ggplot(church_data, aes(x = num_hrs_conf, y = num_weekend_mass)) +
-  geom_point() +
+girafe(ggobj = p_weekend_hist, width_svg = 8, height_svg = 5) %>%
+  girafe_options(opts_sizing(rescale = TRUE), opts_hover(css = "stroke-width:2;"))
+
+conf_hrs_bins <- church_data %>%
+  filter(!is.na(num_hrs_conf)) %>%
+  mutate(bin = cut(num_hrs_conf, breaks = 30)) %>%
+  count(bin, name = "n_churches") %>%
+  mutate(tooltip = paste0("Confession hours: ", bin, "\nChurches: ", n_churches))
+
+p_conf_hist <- ggplot(conf_hrs_bins, aes(x = bin, y = n_churches)) +
+  geom_col_interactive(aes(tooltip = tooltip, data_id = bin))
+
+girafe(ggobj = p_conf_hist, width_svg = 8, height_svg = 5) %>%
+  girafe_options(opts_sizing(rescale = TRUE), opts_hover(css = "stroke-width:2;"))
+
+church_scatter_df <- church_data %>%
+  mutate(tooltip = paste0(name, "\nConfession hours: ", round(num_hrs_conf, 1),
+                           "\nWeekend Masses: ", num_weekend_mass))
+
+p_scatter <- ggplot(church_scatter_df, aes(x = num_hrs_conf, y = num_weekend_mass)) +
+  geom_point_interactive(aes(tooltip = tooltip, data_id = psuedo_id)) +
   labs(title = "Correlation of Confession Hours and Weekend Masses",
        x = "Confession Hours",
        y = "Weekend Masses")
+
+girafe(ggobj = p_scatter, width_svg = 8, height_svg = 5) %>%
+  girafe_options(opts_sizing(rescale = TRUE), opts_hover(css = "stroke-width:2;"))
 ```
 
 # Census Overlap

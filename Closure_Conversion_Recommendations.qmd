@@ -20,6 +20,7 @@ library(tidyverse)
 library(sf)
 library(leaflet)
 library(reactable)
+library(ggiraph)
 
 load("final_recommendation_data.RData")
 
@@ -229,12 +230,16 @@ cat(sprintf(
   scales::dollar(med_deferred)
 ))
 
-ggplot(det_parking,
+det_parking <- det_parking %>%
+  mutate(tooltip = paste0(short_name, "\nCohort: ", cohort,
+                           "\nImplied parking land value: $", round(shadow_rent_usd / 1e6, 2), "M"))
+
+p_shadow_rent <- ggplot(det_parking,
        aes(x = reorder(short_name, shadow_rent_usd),
            y = shadow_rent_usd / 1e6,
            color = cohort)) +
   geom_segment(aes(xend = short_name, yend = 0), linewidth = 0.6) +
-  geom_point(size = 3) +
+  geom_point_interactive(aes(tooltip = tooltip, data_id = short_name), size = 3) +
   geom_hline(yintercept = med_deferred / 1e6,
              linetype = "dashed", color = "#c0392b", linewidth = 0.8) +
   annotate("text", x = 1, y = med_deferred / 1e6,
@@ -249,6 +254,9 @@ ggplot(det_parking,
     title = "Shadow Rent on AOD Parking Footprints vs. Deferred Maintenance"
   ) +
   theme_minimal(base_size = 11)
+
+girafe(ggobj = p_shadow_rent, width_svg = 8, height_svg = 6) %>%
+  girafe_options(opts_sizing(rescale = TRUE), opts_hover(css = "stroke-width:2;"))
 ```
 
 ---

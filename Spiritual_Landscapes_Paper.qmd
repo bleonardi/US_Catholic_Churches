@@ -29,9 +29,10 @@ library(sf)
 library(jsonlite)
 library(leaflet)
 library(tidycensus)
+library(ggiraph)
 
 # Load core datasets
-church_data <- read_csv("national_church_data.csv") %>%
+church_data <- read_csv("national_masstimes_scrape.csv") %>%
   filter(church_address_country_territory_name == "United States", !is.na(latitude))
 
 patron_data <- read_csv("national_church_data_w_patrons.csv")
@@ -174,12 +175,24 @@ if (Sys.getenv("CENSUS_API_KEY") != "") {
               vacancy_rate = first(vacancy_rate),
               pop_total = first(pop_total))
   
-  ggplot(tract_with_churches, aes(x = factor(n_churches), y = median_age)) +
-    geom_boxplot(fill = "steelblue") +
+  tract_with_churches <- tract_with_churches %>%
+    mutate(tooltip = paste0("Tract ", GEOID,
+                             "\nChurches in tract: ", n_churches,
+                             "\nMedian age: ", round(median_age, 1)))
+
+  p_box <- ggplot(tract_with_churches, aes(x = factor(n_churches), y = median_age)) +
+    geom_boxplot_interactive(aes(tooltip = paste0(n_churches, " churches: median age ", round(median_age, 1)),
+                                  data_id = n_churches),
+                              fill = "steelblue") +
+    geom_point_interactive(aes(tooltip = tooltip, data_id = GEOID),
+                            alpha = 0) +
     labs(title = "Church Density vs. Median Age",
          x = "Number of Churches in Tract",
          y = "Median Age of Tract") +
     theme_minimal()
+
+  girafe(ggobj = p_box, width_svg = 8, height_svg = 5) %>%
+    girafe_options(opts_sizing(rescale = TRUE), opts_hover(css = "stroke-width:2;"))
 } else {
   cat("No Census API Key found. Skipping live census fetch. For results, please set 'CENSUS_API_KEY'.")
 }

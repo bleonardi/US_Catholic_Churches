@@ -1,0 +1,318 @@
+---
+title: "Shrinking Flock, Standing Stock? Catholic Decline vs. Real Estate in Cincinnati"
+subtitle: "Exploratory notebook — not part of the published site, not a matched panel"
+author: "Benedict Leonardi"
+format:
+  html:
+    theme: journal
+    toc: true
+    number-sections: true
+    code-fold: true
+    self-contained: true
+---
+
+::: {.callout-warning}
+## This is exploratory, not a finished result
+
+This notebook pairs a long-run (1888-2021) diocese-level panel of Catholic
+population/parishes against a **single present-day snapshot** of parcel-level
+assessed real estate values for Catholic parishes in Hamilton County, Ohio
+(the urban core of the Archdiocese of Cincinnati). Because the real estate
+data has no historical time dimension, **this cannot be a matched
+time-series/panel comparison** — it is a levels-vs-trend, mismatch-framing
+exercise. Every number here also inherits the source data's own
+documented limitations (see @sec-limitations). Treat conclusions as
+suggestive, not a rigorous finding ready for the published papers in this
+project.
+:::
+
+```{r setup, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(scales)
+library(patchwork)
+library(ggiraph)
+
+okabe_ito <- c("#E69F00", "#56B4E9", "#009E73", "#F0E442",
+               "#0072B2", "#D55E00", "#CC79A7", "#000000")
+```
+
+## Data
+
+### 1. Diocese panel (archdiocese-wide, 1888-2021)
+
+```{r load-panel, message=FALSE}
+panel <- read_csv("ocd_historical_panel/ocd_diocese_panel_merged.csv",
+                   show_col_types = FALSE)
+
+cin_raw <- panel %>%
+  filter(canonical_diocese_name == "Cincinnati") %>%
+  arrange(year)
+
+# Plausibility filter, per the panel's own README/merge_log warnings:
+# ~8.6% of total_catholic_population values nationally are implausible by
+# magnitude alone (OCR digit-drop/repeat artifacts), and this failure mode
+# is only weakly caught by the `quality_flags` column. Cincinnati's own
+# known-good range across the 20th-21st century runs roughly 90k (1920,
+# early growth phase) to ~550k (peak, late 1990s) -- so single-year values
+# that collapse to a few thousand (e.g. 1986: 4,582; 2010: 4,682; 2019:
+# 45,104) are dropped as OCR artifacts (a digit or two lost), not treated
+# as real one-year population crashes. Same logic for total_parishes: the
+# whole-panel run for Cincinnati sits in a tight 200s-250s band except one
+# implausible single-year value (1999: 37, versus 232 in 2000 and 259 in
+# 1970) which is dropped as a likely dropped-digit OCR error.
+cin <- cin_raw %>%
+  mutate(
+    total_catholic_population = if_else(
+      !is.na(total_catholic_population) &
+        (total_catholic_population < 1.5e5 | total_catholic_population > 7e5),
+      NA_real_, total_catholic_population
+    ),
+    total_parishes = if_else(
+      !is.na(total_parishes) & total_parishes < 100,
+      NA_real_, total_parishes
+    )
+  )
+
+n_dropped_pop <- sum(!is.na(cin_raw$total_catholic_population)) - sum(!is.na(cin$total_catholic_population))
+n_dropped_par <- sum(!is.na(cin_raw$total_parishes)) - sum(!is.na(cin$total_parishes))
+```
+
+`r n_dropped_pop` year(s) of `total_catholic_population` and `n_dropped_par`
+year(s) of `total_parishes` were dropped as OCR-magnitude outliers (see code
+above for the exact rule and rationale). This is a manual, judgment-call
+filter on top of the panel's own `cleaned`/`merged` processing — appropriate
+for a quick exploratory read, not a substitute for the systematic
+`cleaning_log.md` methodology.
+
+### 2. Parish real estate parcels (Hamilton County, present-day snapshot)
+
+```{r load-parcels, message=FALSE}
+parcels_raw <- read_csv("national_church_data/cincinnati_covington_church_parcels.csv",
+                         show_col_types = FALSE)
+
+# Restrict to the Archdiocese of Cincinnati AND Hamilton County, OH.
+# Important scope note: the source file also carries Diocese of Covington
+# (Kentucky side, a *different* diocese entirely) parishes, plus a couple of
+# small Campbell/Kenton County KY rows -- those are dropped here. What's left
+# is, in practice, essentially all of the "Cincinnati" rows in this file:
+# the underlying dataset only captured Hamilton County for this diocese, not
+# the full 19-county Archdiocese of Cincinnati footprint. That is a real
+# geographic scope mismatch against the archdiocese-wide panel numbers above
+# -- flagged again in the write-up below.
+cin_parcels <- parcels_raw %>%
+  filter(diocese_name == "Cincinnati", matched_county == "Hamilton_OH")
+
+cin_parishes <- cin_parcels %>%
+  filter(church_type == "Parish")
+
+realestate_summary <- cin_parishes %>%
+  summarise(
+    n_parcels          = n(),
+    n_distinct_parishes = n_distinct(church_name),
+    land_value          = sum(parcel_taxable_land_value, na.rm = TRUE),
+    improvement_value   = sum(parcel_taxable_improvement_value, na.rm = TRUE),
+    total_value         = land_value + improvement_value,
+    total_acres          = sum(parcel_area_acres, na.rm = TRUE)
+  )
+```
+
+```{r rs-table}
+realestate_summary %>%
+  mutate(across(c(land_value, improvement_value, total_value), dollar)) %>%
+  knitr::kable(col.names = c("Parcels", "Distinct parishes", "Land value",
+                              "Improvement value", "Total value", "Acres"))
+```
+
+Hamilton County's `r realestate_summary$n_distinct_parishes` Catholic
+parishes hold **`r dollar(realestate_summary$land_value)`** in aggregate
+assessed *land* value alone, or **`r dollar(realestate_summary$total_value)`**
+including improvements (buildings), across
+`r round(realestate_summary$total_acres)` acres, per the county assessor
+snapshot joined in `national_church_data/cincinnati_covington_church_parcels.csv`.
+That's an average of roughly `r dollar(realestate_summary$total_value / realestate_summary$n_distinct_parishes)`
+per parish in combined land+improvement value.
+
+## The population/parish trend
+
+```{r pop-trend}
+pop_plot_df <- cin %>%
+  filter(!is.na(total_catholic_population)) %>%
+  mutate(tooltip = paste0("Archdiocese of Cincinnati, ", year,
+                           "\nCatholic population: ", comma(total_catholic_population)))
+
+pop_plot <- pop_plot_df %>%
+  ggplot(aes(year, total_catholic_population)) +
+  geom_line_interactive(color = okabe_ito[5], linewidth = 0.8) +
+  geom_point_interactive(aes(tooltip = tooltip, data_id = year),
+                          color = okabe_ito[5], size = 1.8) +
+  scale_y_continuous(labels = label_number(scale = 1e-3, suffix = "k")) +
+  labs(
+    title = "Archdiocese of Cincinnati: Catholic population, 1888-2021",
+    subtitle = "OCD-derived panel, outlier years dropped (see notes above)",
+    x = NULL, y = "Reported Catholic population"
+  ) +
+  theme_minimal(base_size = 12)
+
+parish_plot_df <- cin %>%
+  filter(!is.na(total_parishes)) %>%
+  mutate(tooltip = paste0("Archdiocese of Cincinnati, ", year,
+                           "\nTotal parishes: ", comma(total_parishes)))
+
+parish_plot <- parish_plot_df %>%
+  ggplot(aes(year, total_parishes)) +
+  geom_line_interactive(color = okabe_ito[6], linewidth = 0.8) +
+  geom_point_interactive(aes(tooltip = tooltip, data_id = year),
+                          color = okabe_ito[6], size = 1.8) +
+  labs(
+    title = "Archdiocese of Cincinnati: total parishes, 1888-2021",
+    subtitle = "Sparser field (0.5% national parse rate); points shown only where reported",
+    x = NULL, y = "Reported parish count"
+  ) +
+  theme_minimal(base_size = 12)
+
+girafe(ggobj = pop_plot / parish_plot, width_svg = 8, height_svg = 8) %>%
+  girafe_options(opts_sizing(rescale = TRUE), opts_hover(css = "stroke-width:2;"))
+```
+
+```{r pop-stats}
+peak_row   <- cin %>% filter(!is.na(total_catholic_population)) %>% slice_max(total_catholic_population, n = 1, with_ties = FALSE)
+latest_row <- cin %>% filter(!is.na(total_catholic_population)) %>% slice_max(year, n = 1)
+early_row  <- cin %>% filter(!is.na(total_catholic_population), year <= 1965) %>% slice_max(year, n = 1)
+
+pct_decline_from_peak  <- 1 - latest_row$total_catholic_population / peak_row$total_catholic_population
+pct_decline_since_1960s <- 1 - latest_row$total_catholic_population / early_row$total_catholic_population
+```
+
+Reading the filtered series: reported Catholic population climbs from
+~91,000 (1920) to a plausible-series peak of
+`r comma(peak_row$total_catholic_population)` in `r peak_row$year`, then
+declines to `r comma(latest_row$total_catholic_population)` by
+`r latest_row$year` — a **`r percent(pct_decline_from_peak, accuracy = 1)`
+decline from peak**, or **`r percent(pct_decline_since_1960s, accuracy = 1)`**
+measured from the `r early_row$year` reading
+(`r comma(early_row$total_catholic_population)`) to `r latest_row$year`.
+(The 2021 raw value, ~305k, was left in the filtered series since it passes
+the magnitude filter, but note it carries several *other* field quality
+flags in that row — treat the very last data point with more caution than
+the rest of the line.)
+
+Parish counts, where reported, run from 219 (1920) up to 259 (1970) and back
+down to 218 by 2010 — a much shallower decline (roughly 16% off the 1970
+peak) than the population decline over a comparable window. That gap itself
+— population falling faster than parish count — is the setup for the real
+estate question: if parishes aren't closing in proportion to membership
+loss, the underlying real estate isn't being shed either.
+
+## Putting the two together
+
+```{r bar-chart}
+bar_df <- tibble(
+  metric = c("Catholic population\n(1998 peak → 2018)", "Parishes\n(1970 peak → 2010)"),
+  pct_change = c(-pct_decline_from_peak, -(259 - 218) / 259)
+) %>%
+  mutate(tooltip = paste0(str_replace_all(metric, "\n", " "),
+                           ": ", percent(pct_change, accuracy = 1), " change from peak"))
+
+p_bar <- ggplot(bar_df, aes(metric, pct_change)) +
+  geom_col_interactive(aes(tooltip = tooltip, data_id = metric), fill = okabe_ito[6], width = 0.5) +
+  geom_hline(yintercept = 0) +
+  geom_text(aes(label = percent(pct_change, accuracy = 1)), vjust = 1.4, color = "white", fontface = "bold") +
+  scale_y_continuous(labels = percent) +
+  labs(
+    title = "Demand has fallen faster than supply of parishes",
+    subtitle = "Archdiocese-wide, from each series' own peak to its latest reliable reading",
+    x = NULL, y = "% change from peak"
+  ) +
+  theme_minimal(base_size = 12)
+
+girafe(ggobj = p_bar, width_svg = 8, height_svg = 5) %>%
+  girafe_options(opts_sizing(rescale = TRUE), opts_hover(css = "stroke-width:2;"))
+```
+
+The headline pairing, stated carefully:
+
+- **Archdiocese-wide** Catholic population fell about
+  `r percent(pct_decline_from_peak, accuracy = 1)` from its reported peak
+  (`r peak_row$year`) to the most recent plausible reading
+  (`r latest_row$year`).
+- **Archdiocese-wide** parish count fell only ~16% from its 1970 peak (259)
+  to 2010 (218) — a much shallower decline.
+- **Hamilton-County-only**, present day: `r realestate_summary$n_distinct_parishes`
+  parishes still hold `r dollar(realestate_summary$total_value)` in combined
+  assessed land+improvement value (`r dollar(realestate_summary$land_value)`
+  land alone).
+
+There is no way, with this data, to say whether that `r dollar(realestate_summary$total_value)`
+figure is *up or down* in real terms from 1970 or 1998 — there is no
+historical assessor series in hand for this project (see @sec-limitations).
+But the **structural** picture is consistent with an "excess real estate"
+story: the archdiocese has shed membership much faster than it has shed
+parishes, so whatever the trajectory of land values, the *number of
+separately-held parcels* generating carrying costs (insurance, utilities,
+deferred maintenance, property tax on non-exempt or mixed-use parcels) has
+not shrunk in step with demand. This is the same mismatch that
+`Economics_of_Church_Consolidation.qmd` argues from a present-day snapshot;
+this notebook adds the demand-side historical depth but does not (and
+currently cannot) add a matching historical supply-side value series.
+
+A secondary observation worth flagging: the Hamilton County parcel file
+includes a non-trivial amount of parish-held real estate that is not the
+church building itself — `r sum(cin_parishes$parcel_land_use_category == "Vacant Land", na.rm = TRUE)`
+parcels are classified "Vacant Land," and dozens more are single-family,
+multi-family, or commercial/retail parcels (rectories, former convents/
+schools, adjacent lots) rather than "Church/Religious" use. That's
+consistent with parishes sitting on more land than their current
+sacramental footprint requires — exactly the kind of latent real estate
+this project's consolidation thesis is about — but is not itself evidence
+about value *trends*.
+
+## Limitations {#sec-limitations}
+
+1. **No historical real estate series.** The parcel file is a single
+   present-day Hamilton County assessor snapshot. There is no equivalent
+   1970s/1990s assessed-value series for these same parcels anywhere in this
+   project, and none was fetched for this notebook per instructions (existing
+   Census/NHGIS extracts already in this project —
+   `nhgis0001_csv`/`nhgis0002_csv` — turned out to contain only 1950/1970
+   *population density* tables, not housing/property value variables, so they
+   could not be repurposed for a real-estate trend check without a fresh
+   data pull). This means the central question the task poses — "is real
+   estate value declining proportionally with membership" — **cannot
+   actually be answered with a real trend comparison here.** What's shown
+   instead is a *levels* comparison: today's real estate stock against the
+   long-run membership trend.
+2. **Geographic scope mismatch.** The diocese panel figures (population,
+   parishes) are archdiocese-wide, covering the full ~19-county Archdiocese
+   of Cincinnati footprint in southwest Ohio. The parcel file, despite being
+   labeled "Cincinnati," only captured Hamilton County (the urban core) for
+   this diocese. Hamilton County is where the oldest, most population-loss-
+   exposed urban parishes are concentrated, so if anything this likely
+   *overstates* the mismatch between demand decline and real estate
+   persistence relative to the full archdiocese (suburban/exurban counties
+   in the same archdiocese have plausibly seen parish growth, not decline,
+   over the same period — consistent with this project's own
+   `Suburbanization_Analysis.qmd` finding a suburban shift in parish
+   footprint).
+3. **`total_catholic_population` and `total_parishes` are both
+   OCR-extraction-derived and imperfect even after cleaning/merging.** Per
+   `ocd_historical_panel/README.md`, roughly 8.6% of national
+   `total_catholic_population` values are magnitude-implausible even before
+   any manual eyeballing, and this notebook's own outlier filter (a simple
+   magnitude bound, not the full documented `cleaning_log.md` methodology)
+   is a coarser, faster pass than the project's systematic cleaning process.
+   `total_parishes` has only a 0.5% national parse rate, so the parish-count
+   line above is sparse and each point should be read as "reported in a year
+   OCD editions happened to include a parseable statistics block," not a
+   dense annual series.
+4. **"Assessed land value" is a tax-assessment construct, not a market
+   appraisal.** All rows in the Hamilton County parcel file show
+   `parcel_is_fully_exempt == FALSE`, which is unexpected for church
+   property (churches are typically property-tax exempt) — this may mean
+   the assessor's underlying land/improvement values used here are a
+   pre-exemption or reference valuation rather than the parishes' true
+   current market value; this was not independently verified against
+   Hamilton County's own exemption rules for this notebook.
+5. **Not a matched entity list.** The `r peak_row$year` vs. `r latest_row$year`
+   population comparison and the present-day parish real estate total are
+   not drawn from an identical, fixed list of parishes — parishes that
+   closed/merged/opened between those dates are not separately tracked here.

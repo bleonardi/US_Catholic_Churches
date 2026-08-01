@@ -21,9 +21,13 @@ library(scales)
 library(fixest)
 library(spdep)
 library(broom)
+library(ggiraph)
+
+okabe_ito <- c("#E69F00", "#56B4E9", "#009E73", "#F0E442",
+               "#0072B2", "#D55E00", "#CC79A7", "#000000")
 
 # ── Church data ──────────────────────────────────────────────────────────────
-church_data <- read_csv("national_church_data.csv", show_col_types = FALSE) %>%
+church_data <- read_csv("national_masstimes_scrape.csv", show_col_types = FALSE) %>%
   filter(
     church_address_country_territory_name == "United States",
     !is.na(latitude), !is.na(longitude),
@@ -169,16 +173,17 @@ cong_ur <- county_data %>%
 
 ```{r cong-index-plot}
 # The key chart: did Catholic congregations keep pace with population?
-cong_ur %>%
+p_cong_index <- cong_ur %>%
   select(ur_type, year, idx_cong, idx_pop) %>%
   pivot_longer(c(idx_cong, idx_pop), names_to = "series", values_to = "index") %>%
   mutate(
     ur_type = fct_relevel(ur_type, "Urban core", "Suburban", "Smaller metro", "Rural"),
-    series  = if_else(series == "idx_cong", "Catholic congregations", "Total population")
+    series  = if_else(series == "idx_cong", "Catholic congregations", "Total population"),
+    tooltip = paste0(ur_type, ", ", year, "\n", series, " index: ", round(index, 1))
   ) %>%
   ggplot(aes(x = year, y = index, color = series, linetype = series)) +
-  geom_line(linewidth = 1) +
-  geom_point(size = 2) +
+  geom_line_interactive(aes(tooltip = series, data_id = interaction(ur_type, series)), linewidth = 1) +
+  geom_point_interactive(aes(tooltip = tooltip, data_id = interaction(ur_type, series, year)), size = 2) +
   geom_hline(yintercept = 100, linetype = "dotted", color = "grey60") +
   facet_wrap(~ ur_type, nrow = 1) +
   scale_color_manual(values = c("Catholic congregations" = "#c0392b",
@@ -192,18 +197,22 @@ cong_ur %>%
   ) +
   theme_minimal() +
   theme(legend.position = "bottom", strip.text = element_text(face = "bold"))
+
+girafe(ggobj = p_cong_index, width_svg = 10, height_svg = 4.5) %>%
+  girafe_options(opts_sizing(rescale = TRUE), opts_hover(css = "stroke-width:2;"))
 ```
 
 ```{r cong-vs-pop-plot}
 # The ratio: congregation index / population index
 # 100 = parity; < 100 = institutional lag behind population
-cong_ur %>%
-  mutate(ur_type = fct_relevel(ur_type, "Urban core", "Suburban", "Smaller metro", "Rural")) %>%
+p_cong_vs_pop <- cong_ur %>%
+  mutate(ur_type = fct_relevel(ur_type, "Urban core", "Suburban", "Smaller metro", "Rural"),
+         tooltip = paste0(ur_type, ", ", year, "\nCong/pop ratio: ", round(cong_vs_pop, 1))) %>%
   ggplot(aes(x = year, y = cong_vs_pop, color = ur_type, group = ur_type)) +
-  geom_line(linewidth = 1.1) +
-  geom_point(size = 2.5) +
+  geom_line_interactive(aes(tooltip = ur_type, data_id = ur_type), linewidth = 1.1) +
+  geom_point_interactive(aes(tooltip = tooltip, data_id = paste(ur_type, year)), size = 2.5) +
   geom_hline(yintercept = 100, linetype = "dashed", color = "grey50") +
-  scale_color_brewer(palette = "Set2") +
+  scale_color_manual(values = okabe_ito) +
   scale_y_continuous(limits = c(55, 105)) +
   annotate("text", x = 1982, y = 101, label = "Congregations keep pace\nwith population",
            hjust = 0, size = 3, color = "grey40") +
@@ -216,6 +225,9 @@ cong_ur %>%
   ) +
   theme_minimal() +
   theme(legend.position = "bottom")
+
+girafe(ggobj = p_cong_vs_pop, width_svg = 8, height_svg = 5) %>%
+  girafe_options(opts_sizing(rescale = TRUE), opts_hover(css = "stroke-width:2;"))
 ```
 
 ### Congregation counts: the raw numbers
@@ -268,16 +280,17 @@ shift_by_q <- county_q %>%
 ### Congregation index by metro Catholic concentration quintile
 
 ```{r metro-q-plot}
-shift_by_q %>%
+p_metro_q <- shift_by_q %>%
   mutate(
     ur_type      = fct_relevel(ur_type, "Urban core", "Suburban"),
     quintile_lab = paste0("Q", metro_cath_q,
                           if_else(metro_cath_q == 1, " (least Catholic)",
-                          if_else(metro_cath_q == 5, " (most Catholic)", "")))
+                          if_else(metro_cath_q == 5, " (most Catholic)", ""))),
+    tooltip = paste0(quintile_lab, ", ", ur_type, ", ", year, "\nCongregation index: ", round(idx_cong, 1))
   ) %>%
   ggplot(aes(x = year, y = idx_cong, color = ur_type, group = ur_type)) +
-  geom_line(linewidth = 1) +
-  geom_point(size = 2) +
+  geom_line_interactive(aes(tooltip = ur_type, data_id = interaction(quintile_lab, ur_type)), linewidth = 1) +
+  geom_point_interactive(aes(tooltip = tooltip, data_id = interaction(quintile_lab, ur_type, year)), size = 2) +
   geom_hline(yintercept = 100, linetype = "dotted", color = "grey60") +
   facet_wrap(~ quintile_lab, nrow = 1) +
   scale_color_manual(values = c("Urban core" = "#c0392b", "Suburban" = "#2980b9")) +
@@ -288,17 +301,23 @@ shift_by_q %>%
   ) +
   theme_minimal() +
   theme(legend.position = "bottom", strip.text = element_text(face = "bold"))
+
+girafe(ggobj = p_metro_q, width_svg = 10, height_svg = 4.5) %>%
+  girafe_options(opts_sizing(rescale = TRUE), opts_hover(css = "stroke-width:2;"))
 ```
 
 ```{r cong-vs-pop-by-q}
 # The ratio: does high-Catholic metro look different in its lag?
-shift_by_q %>%
-  mutate(ur_type = fct_relevel(ur_type, "Urban core", "Suburban")) %>%
+p_cong_vs_pop_q <- shift_by_q %>%
+  mutate(ur_type = fct_relevel(ur_type, "Urban core", "Suburban"),
+         tooltip = paste0("Q", metro_cath_q, " metros, ", ur_type, ", ", year,
+                           "\nCong/pop ratio: ", round(cong_vs_pop, 1))) %>%
   ggplot(aes(x = year, y = cong_vs_pop, color = factor(metro_cath_q),
              group = interaction(metro_cath_q, ur_type),
              linetype = ur_type)) +
-  geom_line(linewidth = 1) +
-  geom_point(size = 2) +
+  geom_line_interactive(aes(tooltip = paste0("Q", metro_cath_q, ", ", ur_type),
+                             data_id = interaction(metro_cath_q, ur_type)), linewidth = 1) +
+  geom_point_interactive(aes(tooltip = tooltip, data_id = interaction(metro_cath_q, ur_type, year)), size = 2) +
   geom_hline(yintercept = 100, linetype = "dotted", color = "grey60") +
   scale_color_brewer(palette = "RdYlBu", direction = -1,
                      labels = c("Q1 least Catholic","Q2","Q3","Q4","Q5 most Catholic")) +
@@ -311,6 +330,9 @@ shift_by_q %>%
   ) +
   theme_minimal() +
   theme(legend.position = "right")
+
+girafe(ggobj = p_cong_vs_pop_q, width_svg = 8, height_svg = 5.5) %>%
+  girafe_options(opts_sizing(rescale = TRUE), opts_hover(css = "stroke-width:2;"))
 ```
 
 ### Suburban share of Catholic congregations over time
@@ -327,10 +349,14 @@ suburban_share <- county_q %>%
                                if_else(metro_cath_q == 1, " (least Catholic)",
                                if_else(metro_cath_q == 5, " (most Catholic)", ""))))
 
-ggplot(suburban_share, aes(x = year, y = suburban_share,
+suburban_share <- suburban_share %>%
+  mutate(tooltip = paste0("Q", metro_cath_q, " metros, ", year,
+                           "\nSuburban share: ", percent(suburban_share, accuracy = 0.1)))
+
+p_sub_share <- ggplot(suburban_share, aes(x = year, y = suburban_share,
                             color = factor(metro_cath_q), group = metro_cath_q)) +
-  geom_line(linewidth = 1.1) +
-  geom_point(size = 2.5) +
+  geom_line_interactive(aes(tooltip = paste0("Q", metro_cath_q), data_id = metro_cath_q), linewidth = 1.1) +
+  geom_point_interactive(aes(tooltip = tooltip, data_id = paste(metro_cath_q, year)), size = 2.5) +
   scale_y_continuous(labels = percent_format(), limits = c(0.35, 0.70)) +
   scale_color_brewer(palette = "RdYlBu", direction = -1,
                      labels = c("Q1 least Catholic","Q2","Q3","Q4","Q5 most Catholic")) +
@@ -342,6 +368,9 @@ ggplot(suburban_share, aes(x = year, y = suburban_share,
   ) +
   theme_minimal() +
   theme(legend.position = "right")
+
+girafe(ggobj = p_sub_share, width_svg = 8, height_svg = 5) %>%
+  girafe_options(opts_sizing(rescale = TRUE), opts_hover(css = "stroke-width:2;"))
 ```
 
 ---
@@ -374,11 +403,14 @@ cat("Correlation pct_cath_1952 ~ pct_cath_1980:",
 ### Catholic concentration is highly stable 1952–1980
 
 ```{r stability-plot}
-county_cath %>%
+p_stability <- county_cath %>%
   filter(!is.na(pct_cath_1952), !is.na(pct_cath_1980),
          pct_cath_1952 < 1, pct_cath_1980 < 1) %>%
+  mutate(tooltip = paste0("County FIPS ", county_fips,
+                           "\n1952 Catholic share: ", percent(pct_cath_1952, accuracy = 0.1),
+                           "\n1980 Catholic share: ", percent(pct_cath_1980, accuracy = 0.1))) %>%
   ggplot(aes(x = pct_cath_1952, y = pct_cath_1980)) +
-  geom_point(alpha = 0.2, size = 0.8) +
+  geom_point_interactive(aes(tooltip = tooltip, data_id = county_fips), alpha = 0.2, size = 0.8) +
   geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "grey50") +
   geom_smooth(method = "lm", se = TRUE, color = "steelblue") +
   scale_x_continuous(labels = percent_format()) +
@@ -389,6 +421,9 @@ county_cath %>%
     x = "Catholic share 1952", y = "Catholic share 1980"
   ) +
   theme_minimal()
+
+girafe(ggobj = p_stability, width_svg = 8, height_svg = 5) %>%
+  girafe_options(opts_sizing(rescale = TRUE), opts_hover(css = "stroke-width:2;"))
 ```
 
 ### Full time series: 1952 + 1980–2010 congregation trends by urban-rural type
@@ -414,13 +449,14 @@ cong_full <- bind_rows(cong_1952, cong_ur %>% select(ur_type, year, cath_cong, t
   ungroup()
 
 # Congregation / population ratio — now from 1952 baseline
-cong_full %>%
-  mutate(ur_type = fct_relevel(ur_type, "Urban core", "Suburban", "Smaller metro", "Rural")) %>%
+p_full_ts <- cong_full %>%
+  mutate(ur_type = fct_relevel(ur_type, "Urban core", "Suburban", "Smaller metro", "Rural"),
+         tooltip = paste0(ur_type, ", ", year, "\nCong/pop index: ", round(cong_vs_pop, 1))) %>%
   ggplot(aes(x = year, y = cong_vs_pop, color = ur_type, group = ur_type)) +
-  geom_line(linewidth = 1.1) +
-  geom_point(size = 2.5) +
+  geom_line_interactive(aes(tooltip = ur_type, data_id = ur_type), linewidth = 1.1) +
+  geom_point_interactive(aes(tooltip = tooltip, data_id = paste(ur_type, year)), size = 2.5) +
   geom_hline(yintercept = 100, linetype = "dashed", color = "grey50") +
-  scale_color_brewer(palette = "Set2") +
+  scale_color_manual(values = okabe_ito) +
   scale_x_continuous(breaks = c(1952, 1980, 1990, 2000, 2010)) +
   annotate("rect", xmin = 1945, xmax = 1975, ymin = -Inf, ymax = Inf,
            alpha = 0.06, fill = "steelblue") +
@@ -433,6 +469,9 @@ cong_full %>%
   ) +
   theme_minimal() +
   theme(legend.position = "bottom")
+
+girafe(ggobj = p_full_ts, width_svg = 8, height_svg = 5) %>%
+  girafe_options(opts_sizing(rescale = TRUE), opts_hover(css = "stroke-width:2;"))
 ```
 
 ### Did Catholic cities suburbanize their parishes differently?
@@ -484,16 +523,17 @@ shift_q52 <- county_q52 %>%
          cong_vs_pop = idx_cong / idx_pop * 100) %>%
   ungroup()
 
-shift_q52 %>%
+p_cities_q <- shift_q52 %>%
   mutate(
     ur_type     = fct_relevel(ur_type, "Urban core", "Suburban"),
     quintile_lab = paste0("Q", cath_q_1952,
                           if_else(cath_q_1952 == 1, " (least Catholic 1952)",
-                          if_else(cath_q_1952 == 5, " (most Catholic 1952)", "")))
+                          if_else(cath_q_1952 == 5, " (most Catholic 1952)", ""))),
+    tooltip = paste0(quintile_lab, ", ", ur_type, ", ", year, "\nCong/pop index: ", round(cong_vs_pop, 1))
   ) %>%
   ggplot(aes(x = year, y = cong_vs_pop, color = ur_type, group = ur_type)) +
-  geom_line(linewidth = 1) +
-  geom_point(size = 2) +
+  geom_line_interactive(aes(tooltip = ur_type, data_id = interaction(quintile_lab, ur_type)), linewidth = 1) +
+  geom_point_interactive(aes(tooltip = tooltip, data_id = interaction(quintile_lab, ur_type, year)), size = 2) +
   geom_hline(yintercept = 100, linetype = "dashed", color = "grey50") +
   facet_wrap(~ quintile_lab, nrow = 1) +
   scale_color_manual(values = c("Urban core" = "#c0392b", "Suburban" = "#2980b9")) +
@@ -504,6 +544,9 @@ shift_q52 %>%
   ) +
   theme_minimal() +
   theme(legend.position = "bottom", strip.text = element_text(face = "bold", size = 7))
+
+girafe(ggobj = p_cities_q, width_svg = 10, height_svg = 4.5) %>%
+  girafe_options(opts_sizing(rescale = TRUE), opts_hover(css = "stroke-width:2;"))
 ```
 
 ```{r suburban-share-1952}
@@ -516,10 +559,14 @@ sub_share_q52 <- county_q52 %>%
   ungroup() %>%
   filter(ur_type == "Suburban")
 
-ggplot(sub_share_q52, aes(x = year, y = suburban_share,
+sub_share_q52 <- sub_share_q52 %>%
+  mutate(tooltip = paste0("Q", cath_q_1952, " metros (1952), ", year,
+                           "\nSuburban share: ", percent(suburban_share, accuracy = 0.1)))
+
+p_sub_share_52 <- ggplot(sub_share_q52, aes(x = year, y = suburban_share,
                            color = factor(cath_q_1952), group = cath_q_1952)) +
-  geom_line(linewidth = 1.1) +
-  geom_point(size = 2.5) +
+  geom_line_interactive(aes(tooltip = paste0("Q", cath_q_1952), data_id = cath_q_1952), linewidth = 1.1) +
+  geom_point_interactive(aes(tooltip = tooltip, data_id = paste(cath_q_1952, year)), size = 2.5) +
   scale_y_continuous(labels = percent_format()) +
   scale_color_brewer(palette = "RdYlBu", direction = -1,
                      labels = c("Q1 least Catholic","Q2","Q3","Q4","Q5 most Catholic")) +
@@ -531,6 +578,9 @@ ggplot(sub_share_q52, aes(x = year, y = suburban_share,
   ) +
   theme_minimal() +
   theme(legend.position = "right")
+
+girafe(ggobj = p_sub_share_52, width_svg = 8, height_svg = 5) %>%
+  girafe_options(opts_sizing(rescale = TRUE), opts_hover(css = "stroke-width:2;"))
 ```
 
 ---
@@ -545,35 +595,51 @@ institution.
 ### Weekend masses by urban-rural type
 
 ```{r vitality-mass}
-church_data %>%
+vitality_mass_df <- church_data %>%
   filter(!is.na(ur_type), n_weekend > 0, n_weekend < 15) %>%
   mutate(ur_type = fct_reorder(ur_type, ur_code)) %>%
+  group_by(ur_type) %>%
+  mutate(median_weekend = median(n_weekend)) %>%
+  ungroup()
+
+p_vitality_mass <- vitality_mass_df %>%
   ggplot(aes(x = ur_type, y = n_weekend, fill = ur_type)) +
-  geom_violin(alpha = 0.7, show.legend = FALSE) +
-  geom_boxplot(width = 0.1, outlier.shape = NA, show.legend = FALSE) +
+  geom_violin_interactive(aes(tooltip = paste0(ur_type, ": weekend Mass distribution"), data_id = ur_type),
+                           alpha = 0.7, show.legend = FALSE) +
+  geom_boxplot_interactive(aes(tooltip = paste0(ur_type, ": median ", round(median_weekend, 1), " weekend Masses"),
+                                data_id = ur_type),
+                            width = 0.1, outlier.shape = NA, show.legend = FALSE) +
   scale_fill_brewer(palette = "Blues", direction = -1) +
   labs(title = "Weekend masses per parish by urban-rural classification",
        x = NULL, y = "Weekend masses per week") +
   theme_minimal()
+
+girafe(ggobj = p_vitality_mass, width_svg = 8, height_svg = 5) %>%
+  girafe_options(opts_sizing(rescale = TRUE), opts_hover(css = "stroke-width:2;"))
 ```
 
 ### Share of parishes offering confession
 
 ```{r vitality-confession-pct}
-church_data %>%
+p_vitality_conf <- church_data %>%
   filter(!is.na(ur_type)) %>%
   mutate(ur_type = fct_reorder(ur_type, ur_code)) %>%
   group_by(ur_type) %>%
   summarize(n_total = n(), n_conf = sum(n_confessions > 0),
             pct_conf = n_conf / n_total) %>%
+  mutate(tooltip = paste0(ur_type, ": ", percent(pct_conf, accuracy = 0.1),
+                           " of ", n_total, " parishes offer confession")) %>%
   ggplot(aes(x = ur_type, y = pct_conf, fill = ur_type)) +
-  geom_col(show.legend = FALSE) +
+  geom_col_interactive(aes(tooltip = tooltip, data_id = ur_type), show.legend = FALSE) +
   geom_text(aes(label = percent(pct_conf, accuracy = 0.1)), vjust = -0.4, size = 3.5) +
   scale_y_continuous(labels = percent_format(), expand = expansion(mult = c(0, 0.1))) +
   scale_fill_brewer(palette = "Blues", direction = -1) +
   labs(title = "Share of parishes offering regular confession by urban-rural type",
        x = NULL, y = NULL) +
   theme_minimal()
+
+girafe(ggobj = p_vitality_conf, width_svg = 8, height_svg = 5) %>%
+  girafe_options(opts_sizing(rescale = TRUE), opts_hover(css = "stroke-width:2;"))
 ```
 
 ---
@@ -602,17 +668,24 @@ fe_mass     <- feols(n_weekend_trim ~ is_suburban + pct_cath_2010 + log_county_p
 fe_conf_any <- feols(I(n_confessions > 0) ~ is_suburban + pct_cath_2010 + log_county_pop | cbsa_title,
                      data = mod_data, vcov = "hetero")
 
-map_dfr(list("Weekend masses" = fe_mass, "Any confession (LPM)" = fe_conf_any),
+fe_est <- map_dfr(list("Weekend masses" = fe_mass, "Any confession (LPM)" = fe_conf_any),
         ~ tidy(.x, conf.int = TRUE) %>% filter(term == "is_suburban"),
         .id = "outcome") %>%
+  mutate(tooltip = paste0(outcome, "\nSuburban coefficient: ", round(estimate, 3),
+                           " [", round(conf.low, 3), ", ", round(conf.high, 3), "]"))
+
+p_fe <- fe_est %>%
   ggplot(aes(x = estimate, xmin = conf.low, xmax = conf.high,
              y = fct_reorder(outcome, estimate))) +
-  geom_pointrange(size = 0.9) +
+  geom_pointrange_interactive(aes(tooltip = tooltip, data_id = outcome), size = 0.9) +
   geom_vline(xintercept = 0, linetype = "dashed", color = "grey50") +
   labs(title   = "Suburban premium on parish vitality (within-metro, CBSA fixed effects)",
        subtitle = "Reference = urban-core parishes in same metro; heteroskedasticity-robust SEs",
        x = "Coefficient on suburban indicator", y = NULL) +
   theme_minimal()
+
+girafe(ggobj = p_fe, width_svg = 8, height_svg = 4) %>%
+  girafe_options(opts_sizing(rescale = TRUE), opts_hover(css = "stroke-width:2;"))
 ```
 
 ---
@@ -700,7 +773,7 @@ zip_county <- read_csv("zip_county_crosswalk.csv", show_col_types = FALSE) |>
   ) |>
   group_by(zip) |> slice(1) |> ungroup()
 
-mt_mi <- read_csv("national_church_data.csv", show_col_types = FALSE) |>
+mt_mi <- read_csv("national_masstimes_scrape.csv", show_col_types = FALSE) |>
   filter(
     church_address_country_territory_name == "United States",
     str_detect(church_address_county, "Wayne|Oakland|Macomb|Monroe|Washtenaw|Livingston")
@@ -786,8 +859,11 @@ cat(sprintf(
   nrow(val), median(val$discrepancy), 100 * mean(val$discrepancy <= 1)
 ))
 
-ggplot(val, aes(x = founding_year_llm, y = founding_year)) +
-  geom_point(alpha = 0.5, size = 1.5) +
+p_founding_val <- val %>%
+  mutate(tooltip = paste0(short_name, "\nLLM: ", founding_year_llm,
+                           " | AOD workbook: ", founding_year)) %>%
+  ggplot(aes(x = founding_year_llm, y = founding_year)) +
+  geom_point_interactive(aes(tooltip = tooltip, data_id = path), alpha = 0.5, size = 1.5) +
   geom_abline(slope = 1, intercept = 0, color = "steelblue", linetype = "dashed") +
   labs(
     title    = "Founding year: AOD workbook extract vs. LLM extraction",
@@ -795,6 +871,9 @@ ggplot(val, aes(x = founding_year_llm, y = founding_year)) +
     x = "LLM-extracted founding year", y = "AOD workbook founding year"
   ) +
   theme_minimal()
+
+girafe(ggobj = p_founding_val, width_svg = 8, height_svg = 5) %>%
+  girafe_options(opts_sizing(rescale = TRUE), opts_hover(css = "stroke-width:2;"))
 ```
 
 ### The Leapfrog Dynamic
@@ -818,12 +897,14 @@ cohort_data <- tibble::tribble(
 ```
 
 ```{r leapfrog-plot}
-cohort_data |>
+p_leapfrog <- cohort_data |>
   select(cohort, `Baptisms (2015–24)` = baptisms_pct,
          `Confirmations (2015–24)` = confirms_pct) |>
   pivot_longer(-cohort, names_to = "sacrament", values_to = "pct_change") |>
+  mutate(tooltip = paste0(str_replace_all(cohort, "\n", " "), "\n", sacrament, ": ", pct_change, "%")) |>
   ggplot(aes(x = cohort, y = pct_change, fill = sacrament)) +
-  geom_col(position = "dodge", alpha = 0.85) +
+  geom_col_interactive(aes(tooltip = tooltip, data_id = interaction(cohort, sacrament)),
+                        position = "dodge", alpha = 0.85) +
   geom_hline(yintercept = 0, color = "grey50") +
   scale_fill_manual(values = c("Baptisms (2015–24)" = "#2980b9",
                                "Confirmations (2015–24)" = "#c0392b")) +
@@ -836,6 +917,9 @@ cohort_data |>
   theme_minimal() +
   theme(legend.position = "bottom",
         axis.text.x = element_text(size = 8))
+
+girafe(ggobj = p_leapfrog, width_svg = 8, height_svg = 5) %>%
+  girafe_options(opts_sizing(rescale = TRUE), opts_hover(css = "stroke-width:2;"))
 ```
 
 The finding is counterintuitive: **post-suburban parishes founded in the 1950s
@@ -923,23 +1007,26 @@ geo_data |>
 ```
 
 ```{r cohesion-plot}
-geo_data |>
-  ggplot(aes(x = pct_within_parish)) +
-  geom_histogram(binwidth = 5, fill = "steelblue", color = "white", alpha = 0.85) +
-  geom_vline(xintercept = median(geo_data$pct_within_parish, na.rm = TRUE),
+cohesion_bins <- geo_data |>
+  mutate(bin = cut(pct_within_parish, breaks = seq(0, 100, 5))) |>
+  count(bin, name = "n_parishes") |>
+  mutate(tooltip = paste0(bin, "% within boundary: ", n_parishes, " parishes"))
+
+p_cohesion <- ggplot(cohesion_bins, aes(x = bin, y = n_parishes)) +
+  geom_col_interactive(aes(tooltip = tooltip, data_id = bin), fill = "steelblue", color = "white", alpha = 0.85) +
+  geom_vline(xintercept = median(geo_data$pct_within_parish, na.rm = TRUE) / 5,
              linetype = "dashed", color = "grey40") +
-  annotate("text",
-           x = median(geo_data$pct_within_parish, na.rm = TRUE) + 2,
-           y = 15, label = sprintf("Median: %d%%",
-             round(median(geo_data$pct_within_parish, na.rm = TRUE))),
-           hjust = 0, size = 3, color = "grey40") +
-  scale_x_continuous(labels = ~ paste0(.x, "%")) +
   labs(
     title    = "Distribution of territorial cohesion across AOD parishes",
-    subtitle = "Share of registered parishioners living within the parish's canonical boundary",
+    subtitle = sprintf("Share of registered parishioners living within the parish's canonical boundary (median: %d%%)",
+                        round(median(geo_data$pct_within_parish, na.rm = TRUE))),
     x = "% of parishioners within parish boundary", y = "Number of parishes"
   ) +
-  theme_minimal()
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+girafe(ggobj = p_cohesion, width_svg = 9, height_svg = 5) %>%
+  girafe_options(opts_sizing(rescale = TRUE), opts_hover(css = "stroke-width:2;"))
 ```
 
 The distribution spans from 1% (Ste. Anne Basilica in Detroit, founded 1701 —
@@ -951,7 +1038,7 @@ whose loyal members are driving in from distant suburbs, maintaining an
 institutional shell in a neighborhood where few of them live.
 
 ```{r cohesion-by-cohort}
-geo_data |>
+p_cohesion_cohort <- geo_data |>
   filter(!is.na(cohort)) |>
   group_by(cohort) |>
   summarize(
@@ -960,8 +1047,10 @@ geo_data |>
     median_pct      = round(median(pct_within_parish), 1),
     .groups = "drop"
   ) |>
+  mutate(tooltip = paste0(str_replace_all(cohort, "\n", " "), " (n=", n, ")",
+                           "\nMean % within boundary: ", mean_pct_within, "%")) |>
   ggplot(aes(x = cohort, y = mean_pct_within, fill = cohort)) +
-  geom_col(show.legend = FALSE, alpha = 0.85) +
+  geom_col_interactive(aes(tooltip = tooltip, data_id = cohort), show.legend = FALSE, alpha = 0.85) +
   geom_text(aes(label = paste0(mean_pct_within, "%")), vjust = -0.4, size = 3.5) +
   scale_fill_brewer(palette = "Blues") +
   scale_y_continuous(labels = ~ paste0(.x, "%"), expand = expansion(mult = c(0, 0.12))) +
@@ -971,15 +1060,26 @@ geo_data |>
     x = NULL, y = "Mean % within parish boundary"
   ) +
   theme_minimal()
+
+girafe(ggobj = p_cohesion_cohort, width_svg = 8, height_svg = 5) %>%
+  girafe_options(opts_sizing(rescale = TRUE), opts_hover(css = "stroke-width:2;"))
 ```
 
 ### Deferred Maintenance and Financial Health
 
 ```{r deferred-maint}
-aod_joined |>
+deferred_df <- aod_joined |>
   filter(!is.na(cohort), !is.na(deferred_maint_usd)) |>
+  group_by(cohort) |>
+  mutate(median_maint = median(deferred_maint_usd) / 1e6) |>
+  ungroup()
+
+p_deferred <- deferred_df |>
   ggplot(aes(x = cohort, y = deferred_maint_usd / 1e6, fill = cohort)) +
-  geom_boxplot(show.legend = FALSE, alpha = 0.8, outlier.size = 1) +
+  geom_boxplot_interactive(aes(tooltip = paste0(str_replace_all(cohort, "\n", " "),
+                                                 ": median $", round(median_maint, 2), "M"),
+                                data_id = cohort),
+                            show.legend = FALSE, alpha = 0.8, outlier.size = 1) +
   scale_fill_brewer(palette = "Reds") +
   scale_y_continuous(labels = ~ paste0("$", .x, "M")) +
   labs(
@@ -988,6 +1088,9 @@ aod_joined |>
     x = NULL, y = "Deferred maintenance (millions)"
   ) +
   theme_minimal()
+
+girafe(ggobj = p_deferred, width_svg = 8, height_svg = 5) %>%
+  girafe_options(opts_sizing(rescale = TRUE), opts_hover(css = "stroke-width:2;"))
 
 cat("Mean deferred maintenance by cohort (thousands):\n")
 aod_joined |>
@@ -1082,11 +1185,14 @@ cohort_pal <- c(
   "Exurban (1990s+)"         = "#d7191c"
 )
 
-aod_vor |>
+p_vor_cohort <- aod_vor |>
   filter(!is.na(cohort)) |>
   st_transform(4326) |>
+  mutate(tooltip = paste0(coalesce(short_name, "Parish"), "\nFounding cohort: ", cohort),
+         row_id = coalesce(short_name, as.character(row_number()))) |>
   ggplot() +
-  geom_sf(aes(fill = cohort), color = "white", linewidth = 0.2) +
+  geom_sf_interactive(aes(fill = cohort, tooltip = tooltip, data_id = row_id),
+                       color = "white", linewidth = 0.2) +
   scale_fill_manual(values = cohort_pal, na.value = "grey85",
                     name = "Founding cohort") +
   labs(
@@ -1096,6 +1202,9 @@ aod_vor |>
   theme_void() +
   theme(legend.position = "bottom",
         legend.text = element_text(size = 8))
+
+girafe(ggobj = p_vor_cohort, width_svg = 8, height_svg = 7) %>%
+  girafe_options(opts_sizing(rescale = TRUE), opts_hover(css = "stroke-width:2;"))
 ```
 
 The ring structure is visible without any statistical testing: inner polygons are
@@ -1142,11 +1251,14 @@ lisa_pal <- c(
   "Not significant"                   = "grey85"
 )
 
-aod_vor_lisa |>
+p_lisa <- aod_vor_lisa |>
   filter(!is.na(lisa_type)) |>
   st_transform(4326) |>
+  mutate(tooltip = paste0(coalesce(short_name, "Parish"), "\nLISA: ", lisa_type),
+         row_id = coalesce(short_name, as.character(row_number()))) |>
   ggplot() +
-  geom_sf(aes(fill = lisa_type), color = "white", linewidth = 0.2) +
+  geom_sf_interactive(aes(fill = lisa_type, tooltip = tooltip, data_id = row_id),
+                       color = "white", linewidth = 0.2) +
   scale_fill_manual(values = lisa_pal, na.value = "grey85",
                     name = "LISA cluster type") +
   labs(
@@ -1157,6 +1269,9 @@ aod_vor_lisa |>
   theme(legend.position = "bottom",
         legend.text = element_text(size = 7),
         legend.title = element_text(size = 8))
+
+girafe(ggobj = p_lisa, width_svg = 8, height_svg = 7) %>%
+  girafe_options(opts_sizing(rescale = TRUE), opts_hover(css = "stroke-width:2;"))
 ```
 
 ```{r lisa-table}
@@ -1190,12 +1305,15 @@ hotspot_lvls <- c("Hot spot (99%)","Hot spot (95%)","Hot spot (90%)",
                   "Not significant",
                   "Cold spot (90%)","Cold spot (95%)","Cold spot (99%)")
 
-aod_vor_lisa |>
+p_gstar <- aod_vor_lisa |>
   filter(!is.na(hotspot)) |>
   mutate(hotspot = factor(hotspot, levels = hotspot_lvls)) |>
   st_transform(4326) |>
+  mutate(tooltip = paste0(coalesce(short_name, "Parish"), "\nG* classification: ", hotspot),
+         row_id = coalesce(short_name, as.character(row_number()))) |>
   ggplot() +
-  geom_sf(aes(fill = hotspot), color = "white", linewidth = 0.2) +
+  geom_sf_interactive(aes(fill = hotspot, tooltip = tooltip, data_id = row_id),
+                       color = "white", linewidth = 0.2) +
   scale_fill_manual(values = hotspot_pal, na.value = "grey85", drop = FALSE,
                     name = "G* classification") +
   labs(
@@ -1205,6 +1323,9 @@ aod_vor_lisa |>
   theme_void() +
   theme(legend.position = "bottom",
         legend.text = element_text(size = 7))
+
+girafe(ggobj = p_gstar, width_svg = 8, height_svg = 7) %>%
+  girafe_options(opts_sizing(rescale = TRUE), opts_hover(css = "stroke-width:2;"))
 ```
 
 G* reinforces the LISA result with directional clarity: the exurban ring is a
