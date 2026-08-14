@@ -38,7 +38,7 @@ This analysis bridges three sub-fields of economics:
 ## Data
 
 Our analysis relies on a novel synthesis of four distinct datasets:
-*   **Institutional Data:** Geocoded locations of approximately 23,000 Catholic institutions scraped from national directories (`national_church_data.csv`).
+*   **Institutional Data:** Geocoded locations of approximately 23,000 Catholic institutions scraped from national directories (`national_masstimes_scrape.csv`).
 *   **Service Demand Proxies:** Ritual frequency data including the number of weekend and weekday Masses per parish (`masstimes_national_data.csv`), serving as a proxy for institutional vitality and localized demand.
 *   **Demographic Data:** US Census American Community Survey (ACS) tract-level data, capturing population density, median age, and socioeconomic variables.
 *   **Infrastructure Data (Overture Maps):** May 2026 release data from Overture Maps (a Meta, Microsoft, and Amazon collaboration) queried via DuckDB. We extract the physical footprints of paved parking areas (`overture_parking_area_m2`) surrounding each church.
@@ -49,7 +49,7 @@ library(sf)
 library(leaflet)
 
 # Load core institutional dataset
-church_data <- read_csv("national_church_data.csv", show_col_types = FALSE) %>%
+church_data <- read_csv("national_masstimes_scrape.csv", show_col_types = FALSE) %>%
   filter(church_address_country_territory_name == "United States", !is.na(latitude))
 
 # Load pre-processed real estate redevelopment data
@@ -139,6 +139,164 @@ reactable(
 )
 ```
 *(Note: The 🛰️ icon indicates surface parking was verified via 2026 AI-derived Overture Maps satellite footprints).*
+
+## Historical Diocesan Trajectories: Excess Parish Supply Over Time
+
+The Redevelopment Index above is a purely cross-sectional, parish-level snapshot: it says nothing about *how a diocese arrived* at its current portfolio of buildings. Two dioceses could show an identical distribution of present-day redevelopment scores while having gotten there by very different paths — one having steadily right-sized its parish count in step with a declining Catholic population, another having left a 1950s-era building stock largely untouched through decades of demographic change. To add that macro-level context, this section uses a newly assembled long-run diocese-level panel — extracted from digitized editions of *The Official Catholic Directory*, 1888-2021 — to construct a **"parishes per 10,000 Catholics"** ratio over time. A diocese whose ratio has risen over the decades has been closing/consolidating parishes more slowly than its Catholic population has shrunk (i.e., accumulating excess supply); a diocese whose ratio has fallen has consolidated aggressively relative to its own population trend (or its population simply outgrew a roughly fixed parish count).
+
+### Data coverage and reliability caveats
+
+This panel is fundamentally different in character from the Mass-times/Overture/Census data used elsewhere in this paper: it is OCR-derived from century-old print directories, re-extracted in part by an LLM pass over 14 "decade-benchmark" editions (1890, 1900, 1910, 1920, 1930, 1940, 1949, 1960, 1970, 1980, 1990, 2000, 2010, 2020) plus five intermediate gap-fill patches, merged onto a base regex-extraction panel. A few points are worth being explicit about before drawing any conclusions from it:
+
+* **Coverage is heavily skewed toward the recent decade-benchmark years.** Both `total_catholic_population` and (especially) `total_parishes` are sparsely and unevenly populated across the full 1888-2021 span; the 2000/2010/2020 editions have by far the best joint coverage (over 130 dioceses each with both fields present), while 1900, 1910, and 1949 have essentially no usable `total_parishes` values at all in this file.
+* **Pre-1930 editions are known to be sparser and less reliable** — fewer dioceses reporting, more OCR noise, and a lower base-panel parse rate generally (the project's own README documents `total_parishes` as a structurally unreliable field, 0.5% raw parse rate, across all eras, only partially improved by the LLM decade re-extraction). We do not treat any pre-1930 point estimate as precise.
+* **A validated failure mode exists even in "good" years**: roughly 8.6% of raw `total_catholic_population` values across the whole panel are implausible by magnitude alone (single-year "craters" or OCR repeated-digit "spikes"), and this is only weakly caught by the panel's own quality flags. We therefore apply our own two-stage filter below rather than trusting raw values as-is: (1) absolute plausibility bounds (Catholic population between 1,000 and 6,000,000; parish count between 1 and 1,500), and (2) a within-diocese local-neighborhood swing filter, flagging any single value that deviates by more than 3x (or falls below 1/3) of that diocese's own median value across all its available years within a ±15-year window — the same style of check the panel's own cleaning methodology used. Diocese-year totals are also summed across any duplicate rows sharing a canonical name (e.g., "Anchorage" and "Juneau" before their 2020 administrative union) rather than averaged, to avoid inflating the ratio for sees that were historically split.
+* We require at least 4 of the 14 decade-benchmark years to survive this filter for a diocese before including it in the "early vs. late" comparison below, and we compare a multi-year early-period average (1930-1990 benchmarks) against a multi-year late-period average (2000-2020 benchmarks) rather than any single point-to-point pair, to reduce the influence of any one residual bad value.
+
+```{r ocd_panel_load, message=FALSE, warning=FALSE}
+library(readr)
+
+decade_years <- c(1890,1900,1910,1920,1930,1940,1949,1960,1970,1980,1990,2000,2010,2020)
+early_years  <- c(1930,1940,1949,1960,1970,1980,1990)
+late_years   <- c(2000,2010,2020)
+
+ocd_panel <- read_csv("ocd_historical_panel/ocd_diocese_panel_merged.csv", show_col_types = FALSE)
+
+# Stage 1: absolute plausibility bounds, applied row-wise before aggregation
+row_ok <- ocd_panel %>%
+  filter(!is.na(total_catholic_population) | !is.na(total_parishes)) %>%
+  mutate(
+    total_catholic_population = if_else(!is.na(total_catholic_population) &
+      (total_catholic_population < 1000 | total_catholic_population > 6000000),
+      NA_real_, total_catholic_population),
+    total_parishes = if_else(!is.na(total_parishes) &
+      (total_parishes < 1 | total_parishes > 1500), NA_real_, total_parishes)
+  )
+
+# Aggregate to diocese-year (sums across duplicate/pre-merger sees sharing a
+# canonical name)
+ocd_agg <- row_ok %>%
+  group_by(canonical_diocese_name, year) %>%
+  summarise(
+    total_catholic_population = if (all(is.na(total_catholic_population))) NA_real_ else sum(total_catholic_population, na.rm = TRUE),
+    total_parishes = if (all(is.na(total_parishes))) NA_real_ else sum(total_parishes, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  filter(!is.na(total_catholic_population), !is.na(total_parishes),
+         total_catholic_population >= 1000, total_parishes >= 1)
+
+# Stage 2: within-diocese local-neighborhood swing filter
+flag_outliers <- function(df, field) {
+  df %>%
+    arrange(canonical_diocese_name, year) %>%
+    group_by(canonical_diocese_name) %>%
+    mutate(
+      local_med = map_dbl(year, function(y) {
+        w <- .data[[field]][abs(year - y) <= 15 & year != y]
+        if (length(w) == 0) return(NA_real_)
+        median(w, na.rm = TRUE)
+      }),
+      ratio_to_local = .data[[field]] / local_med
+    ) %>%
+    ungroup()
+}
+
+ocd_agg <- flag_outliers(ocd_agg, "total_catholic_population") %>%
+  rename(pop_local_med = local_med, pop_ratio = ratio_to_local)
+ocd_agg <- flag_outliers(ocd_agg, "total_parishes") %>%
+  rename(par_local_med = local_med, par_ratio = ratio_to_local)
+
+ocd_clean <- ocd_agg %>%
+  filter(
+    is.na(pop_local_med) | (pop_ratio >= 0.3 & pop_ratio <= 3),
+    is.na(par_local_med) | (par_ratio >= 0.3 & par_ratio <= 3)
+  ) %>%
+  mutate(parishes_per_10k = total_parishes / total_catholic_population * 10000)
+
+panel_benchmarks <- ocd_clean %>% filter(year %in% decade_years)
+
+coverage <- panel_benchmarks %>%
+  group_by(canonical_diocese_name) %>%
+  summarise(n_years = n_distinct(year), .groups = "drop")
+
+early <- panel_benchmarks %>% filter(year %in% early_years) %>%
+  group_by(canonical_diocese_name) %>%
+  summarise(early_ratio = mean(parishes_per_10k), .groups = "drop")
+late <- panel_benchmarks %>% filter(year %in% late_years) %>%
+  group_by(canonical_diocese_name) %>%
+  summarise(late_ratio = mean(parishes_per_10k), .groups = "drop")
+
+diocese_trend <- inner_join(early, late, by = "canonical_diocese_name") %>%
+  left_join(coverage, by = "canonical_diocese_name") %>%
+  mutate(pct_change = (late_ratio - early_ratio) / early_ratio * 100) %>%
+  filter(n_years >= 4) %>%
+  arrange(desc(pct_change))
+
+n_trend_dioceses <- nrow(diocese_trend)
+```
+
+After this filtering, `r n_trend_dioceses` dioceses have at least 4 usable decade-benchmark years spanning both an early (1930-1990) and late (2000-2020) period — a meaningful subset of the roughly 195 dioceses that have existed in the modern era, but far from all of them, and concentrated among dioceses whose 1930/1990/2000+ editions happened to parse cleanly. We do not claim national coverage; this is a within-diocese, longitudinal comparison for the subset where the data supports it.
+
+### Which dioceses over-built, and which consolidated aggressively?
+
+```{r ocd_trend_table, message=FALSE, warning=FALSE}
+diocese_trend %>%
+  arrange(desc(pct_change)) %>%
+  mutate(
+    early_ratio = round(early_ratio, 2),
+    late_ratio = round(late_ratio, 2),
+    pct_change = round(pct_change, 1)
+  ) %>%
+  select(
+    Diocese = canonical_diocese_name,
+    `Benchmark years used` = n_years,
+    `Parishes/10k Catholics (1930-1990 avg.)` = early_ratio,
+    `Parishes/10k Catholics (2000-2020 avg.)` = late_ratio,
+    `% change` = pct_change
+  ) %>%
+  reactable(
+    defaultPageSize = 10,
+    striped = TRUE, highlight = TRUE,
+    columns = list(
+      `% change` = colDef(style = function(value) {
+        color <- if (value > 0) "#D55E00" else "#0072B2"
+        list(color = color, fontWeight = "bold")
+      })
+    )
+  )
+```
+
+The single most striking finding from this comparison is asymmetry: essentially **no diocese in this filtered sample shows a dramatic *rise* in parishes-per-capita.** The largest increases — Alexandria (Louisiana), Lexington, Las Cruces, Kalamazoo, Houma-Thibodaux — are modest, in the range of +7% to +26%, and several long-established urban archdioceses (New Orleans, Miami, Boston) actually show small *declines* even over this "early" window. By contrast, the largest *declines* in parishes-per-capita are large in magnitude and heavily concentrated among historically rural or "mission-territory" dioceses that industrialized/urbanized rapidly: **Salt Lake City** (-85%), **Wilmington** (-83%), **Saint Augustine** (-82%; Florida), **Green Bay** (-81%), **Amarillo** (-71%), **Anchorage-Juneau** (-71%), and **Santa Fe** (-75%). These dioceses typically had dense networks of small rural/ethnic mission parishes serving a comparatively small early-20th-century Catholic population (e.g., Salt Lake City reported roughly 30 parishes for ~17,000 Catholics in 1930, a ratio of 17.4 per 10,000), and then saw Catholic population grow enormously through 20th-century migration (Salt Lake City's Catholic population is now over 300,000) without anything like a proportional expansion in parish count — the opposite of the "over-building" hypothesis, and a pattern of chronic *under-supply relative to population growth* in the Sun Belt/mission-territory dioceses rather than legacy over-supply in the Rust Belt.
+
+This is a genuinely useful, if unexpected, macro finding for the paper's core thesis: at the aggregate diocese level, and to the extent this filtered historical sample is representative, the dominant long-run pattern among US dioceses is **population growth outrunning parish construction** in the fastest-growing sees, not systematic over-building followed by stranded excess capacity. That does not contradict the parish-level Redevelopment Index — a diocese can simultaneously have too few parishes in its fast-growing suburbs *and* several specific underused, high-parking, low-Mass-frequency urban parishes ripe for conversion — but it does argue against treating "aggregate historical over-supply" as a diocese-wide justification for closures; the case for redevelopment in this paper rests on parish-specific characteristics (Mass frequency, parking footprint, local density), not a diocese having systematically over-built relative to its own history.
+
+### Connecting the historical trend to the Redevelopment Index
+
+Because the historical panel's `canonical_diocese_name` and the paper's own `diocese_name` field are drawn from the same underlying diocese-naming convention, the two datasets merge directly on diocese name (181 of 199 dioceses in the parish-level dataset match a canonical historical diocese; the unmatched remainder are almost entirely Eastern Catholic eparchies/exarchates and the military ordinariate, which the OCD historical panel does not cover on a comparable basis). This lets us test directly whether a diocese's long-run parishes-per-capita trend correlates with its present-day Redevelopment Index scores.
+
+```{r ocd_redev_link, message=FALSE, warning=FALSE}
+final_data_flat <- final_data %>% sf::st_drop_geometry()
+
+diocese_redev <- final_data_flat %>%
+  filter(!is.na(redev_score_adj)) %>%
+  group_by(diocese_name) %>%
+  summarise(
+    n_parishes_in_data = n(),
+    mean_redev_score = mean(redev_score_adj, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+joined_trend_redev <- diocese_trend %>%
+  inner_join(diocese_redev, by = c("canonical_diocese_name" = "diocese_name")) %>%
+  filter(n_parishes_in_data >= 5)
+
+cor_test <- cor.test(joined_trend_redev$pct_change, joined_trend_redev$mean_redev_score)
+n_joined <- nrow(joined_trend_redev)
+r_val <- round(unname(cor_test$estimate), 2)
+p_val <- round(cor_test$p.value, 2)
+```
+
+Merging the two datasets and requiring at least 5 parishes per diocese in the redevelopment-index data yields `r n_joined` dioceses with both a historical trend and a present-day mean Redevelopment Score. The correlation between a diocese's historical change in parishes-per-10,000-Catholics and its mean present-day Redevelopment Score is **r = `r r_val`** (p = `r p_val`) — weak, in the expected direction (dioceses that consolidated more aggressively historically tend to have slightly *lower* average redevelopment scores today, i.e. less remaining "slack" to redevelop), but **not statistically significant** at this sample size. We report this transparently rather than overstating it: with only `r n_joined` dioceses and the noise inherent in the historical panel, this analysis cannot confirm a robust diocese-level relationship between historical supply trends and present-day parish-level over-capacity. Establishing that link convincingly would require either a larger/cleaner historical panel (extending the LLM re-extraction and gap-filling to more editions and dioceses) or restricting the parish-level Redevelopment Index comparison to the specific decades/dioceses with the strongest historical coverage. We flag this as a natural extension for future work rather than force a conclusion the current data cannot support.
 
 ## Policy Implications and Conclusion
 

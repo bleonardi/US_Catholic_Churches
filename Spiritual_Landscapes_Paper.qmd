@@ -11,17 +11,7 @@ format:
 
 # Introduction
 
-The Catholic Church in the United States operates within a rigid territorial framework defined by Canon Law. Every square inch of the country is assigned to a specific Parish, which in turn belongs to a Diocese. However, the "lived experience" of parishioners often diverges from these legal boundaries. This paper explores the "Spiritual Landscape" of the Church using geospatial analysis and machine learning to understand how institutional presence, ritual accessibility, and hagiography intersect with physical geography.
-
 # Data and Methodology
-
-We utilize a dataset of approximately 23,000 Catholic institutions scraped from national directories, supplemented by ritual frequency data (Mass and Confession times).
-
-Key methodologies include:
-1. **Geometric Parochiality (Voronoi Diagrams):** Defining the "natural catchment area" of each church based on proximity.
-2. **LLM-Assisted Feature Extraction:** Using `gemini-2.0-flash-lite` to identify patron saints and extract institutional history from parish websites.
-3. **Cross-Diocesan Spatial Analysis:** Identifying areas where geographic accessibility (proximity) conflicts with ecclesiastical jurisdiction.
-4. **Census Integration:** Correlating church service areas with demographic variables from the American Community Survey (ACS).
 
 ```{r setup, message=FALSE, warning=FALSE}
 library(tidyverse)
@@ -44,11 +34,7 @@ full_data <- church_data %>%
 
 # Spatial Analysis: Geometric vs. Ecclesiastical Boundaries
 
-One of the most striking findings is the "leakage" between dioceses. While a parishioner is legally bound to their territorial parish, they are physically closer to churches in neighboring dioceses in many cases.
-
 ## Case Study 1: Cincinnati vs. Covington (The River Border)
-
-The Archdiocese of Cincinnati (OH) and the Diocese of Covington (KY) are separated by the Ohio River.
 
 ```{r cin_cov_analysis}
 # Filter for the region
@@ -135,10 +121,6 @@ leaflet(voronoi_chi_jol) %>%
 
 # Socio-Demographic Correlation (Census Analysis)
 
-By joining our "Spiritual Catchment Areas" with US Census data, we can explore how the density of Catholic presence correlates with local demographics. 
-
-*Note: This analysis requires a Census API key. For demonstration, we use a sample of Kentucky (Covington Diocese) and Ohio (Cincinnati Archdiocese) tracts.*
-
 ```{r census_analysis, message=FALSE, warning=FALSE}
 # Variables: Total Pop, Median Age, Pct Hispanic, Vacancy Rate
 acs_vars <- c(
@@ -222,5 +204,3 @@ knitr::kable(comparison, caption = "Average Church Service Area by Region")
 ```
 
 # Conclusion
-
-The divergence between geometric proximity and ecclesiastical jurisdiction suggests that the Church's territorial model may not always align with the "least-effort" path for parishioners. Dynamic mapping reveals how physical geography—like the Ohio River or Manhattan's density—shapes the accessibility of sacraments. Future research should deepen the integration with Census data to determine if the "Confession Gap" or church density is a leading indicator of demographic shift or neighborhood stability.
